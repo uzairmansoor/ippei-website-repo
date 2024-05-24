@@ -1,0 +1,138 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template to deploy the SSM document
+
+Parameters:
+  project:
+    Type: String
+    Default: cloudweb
+    Description:  Project Name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description:  Environment Name
+  ssmDocumentName:
+    Type: String
+    Description:  Name of the ssm document
+  ssmDocumentFormat:
+    Type: String
+    Default: JSON
+    AllowedValues: [JSON, TEXT, YAML]
+    Description:  Format of the ssm document
+  ssmDocumentType:
+    Type: String
+    Default: Command
+    AllowedValues: [ApplicationConfigurationSchema, Automation, Automation.ChangeTemplate, Command, DeploymentStrategy, Package, Policy, Session]
+    Description:  Type of the ssm document
+  ssmDocumentTargetType:
+    Type: String
+    Default: /AWS::EC2::Instance
+    Description: Target type of resources the document can run on
+  ssmSchemaVersion:
+    Type: String
+    Default: "2.2"
+    Description: Schema version of ssm document
+  ssmDocumentDescription:
+    Type: String
+    Description: Description of ssm document
+  scriptFileName:
+    Type: String
+    Description: Name of shell script file
+  awsRegion:
+    Type: String
+    Default: us-east-1
+    Description: Name of AWS region
+  cwCustomNamespace:
+    Type: String
+    Description: Name of cloudwatch namespace for free memory alarms
+  freeMemoryMetricName:
+    Type: String
+    Description: Name of metric for free memory
+  freeMemoryMetricUnit:
+    Type: String
+    Description: Unit of free memory metric
+  autoScalingGroupName:
+    Type: String
+    Description: Name of an AutoScaling Group
+  ssmDocUpdateMethod:
+    Type: String
+    Default: Replace
+    AllowedValues: [NewVersion, Replace]
+    Description: Update method of SSM document
+
+Resources:
+  freeMemSsmDocument:
+    Type: AWS::SSM::Document
+    Properties:
+      Name: !Sub "${project}-${env}-${ssmDocumentName}-${AWS::Region}"
+      DocumentFormat: !Ref ssmDocumentFormat
+      DocumentType: !Ref ssmDocumentType
+      TargetType: !Ref ssmDocumentTargetType
+      UpdateMethod: !Ref ssmDocUpdateMethod
+      Content:
+        schemaVersion: !Ref ssmSchemaVersion
+        description: !Ref ssmDocumentDescription
+        parameters:
+          awsRegion:
+            type: String
+            default: !Ref awsRegion
+            description: Name of AWS region
+          scriptFileName:
+            type: String
+            default: !Ref scriptFileName
+            description: Name of shell script file
+          cwCustomNamespace:
+            type: String
+            default: !Ref cwCustomNamespace
+            description: Name of cloudwatch namespace for free memory alarms
+          freeMemoryMetricName:
+            type: String
+            default: !Ref freeMemoryMetricName
+            description: Name of metric for free memory
+          freeMemoryMetricUnit:
+            type: String
+            default: !Ref freeMemoryMetricUnit
+            description: Unit of free memory metric
+          autoScalingGroupName:
+            type: String
+            default: !Ref autoScalingGroupName
+            description: Name of an AutoScaling Group
+        mainSteps:
+          - action: "aws:runShellScript"
+            name: "runShellScript"
+            inputs:
+              runCommand:
+                - "sudo su"
+                - "apt-get install bc"
+                - "cd /home/bitnami/"
+                - "cat <<'EOL' >> '{{ scriptFileName }}' - "
+                - "set -x"
+                - "memory_info=$(free -b | grep Mem)"
+                - "free_memory=$(echo $memory_info | awk '{print $4}')"
+                - "free_memory_mb=$((free_memory / 1024 / 1024))"
+                - "free_memory_percent=$(echo \"scale=2; ($free_memory_mb / 1982) * 100\" | bc)"
+                - "METRIC_VALUE=$free_memory_percent"
+                - "aws cloudwatch put-metric-data \\"
+                - " --region '{{ awsRegion }}' \\"
+                - " --namespace '{{ cwCustomNamespace }}' \\"
+                - " --metric-name '{{ freeMemoryMetricName }}' \\"
+                - " --value $METRIC_VALUE \\"
+                - " --unit '{{ freeMemoryMetricUnit }}' \\"
+                - " --dimensions AutoScalingGroupName=\"'{{ autoScalingGroupName }}'\""
+                - "EOL"
+                - "chmod +x '{{ scriptFileName }}'"
+                - "./'{{ scriptFileName }}'"
+                - "echo \"*/1 * * * * /home/bitnami/'{{ scriptFileName }}'\" | crontab -"
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-${ssmDocumentName}-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+
+Outputs:
+  freeMemSsmDocumentName:
+    Value: !Ref freeMemSsmDocument
+    Export:
+      Name: !Sub "${project}-${env}-${ssmDocumentName}-${AWS::Region}"

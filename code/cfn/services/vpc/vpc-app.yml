@@ -1,0 +1,650 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template to deploy the VPC and it's relevant components
+Parameters:
+  project:
+    Type: String
+    Description:  Project Name
+  env:
+    Type: String
+    AllowedValues: [prod, dev, qa]
+    Description:  Environment Name
+  vpcCidr:
+    Type: String
+    Description:  VPC CIDR
+  vpcDnsEnabled:
+    Type: String
+    AllowedValues: [true, false]
+    Description: Indicates whether the instances launched in the VPC get DNS hostnames
+  vpcDnsSupport:
+    Type: String
+    AllowedValues: [true, false] 
+    Description: Indicates whether the DNS resolution is supported for the VPC or not  
+  publicIPActive:
+    Type: String
+    AllowedValues: [yes, no]
+    Description: Indicates whether instances receive a public IP address or not
+  publicSubnet1Cidr:
+    Type: String
+    Description:  Public Subnet 
+    Default: ""
+  publicSubnet2Cidr:
+    Type: String
+    Description:  Public Subnet 
+    Default: ""
+  privateSubnet1Cidr:
+    Type: String
+    Description:  Private Subnet 
+    Default: ""
+  privateSubnet2Cidr:
+    Type: String
+    Description:  Private Subnet 
+    Default: ""
+  protectedSubnet1Cidr:
+    Type: String
+    Description:  Protected Subnet  
+    Default: ""
+  protectedSubnet2Cidr:
+    Type: String
+    Description:  Protected Subnet 
+    Default: ""
+  vpcDestinationCidrBlockPublicRoute:
+    Type: String
+    Description:  Destination CIDR block of public route table
+  vpcDestinationCidrBlockPrivateRoute:
+    Type: String
+    Description:  Destination CIDR block of private route table
+  vpcDestinationCidrBlockProtectedRoute:
+    Type: String
+    Description:  Destination CIDR block of protected route table
+  vpcNaclPublicInboundCidr:
+    Type: String
+    Description:  CIDR range for inbound NACL rules in the public subnet
+  vpcNaclPublicOutboundCidr:
+    Type: String
+    Description:  CIDR range for outbound NACL rules in the public subnet
+  vpcNaclPrivateInboundCidr:
+    Type: String
+    Description:  CIDR range for inbound NACL rules in the private subnet
+  vpcNaclPrivateOutboundCidr:
+    Type: String
+    Description:  CIDR range for outbound NACL rules in the private subnet
+  vpcNaclProtectedInboundCidr:
+    Type: String
+    Description:  CIDR range for inbound NACL rules in the protected subnet
+  vpcNaclProtectedOutboundCidr:
+    Type: String
+    Description:  CIDR range for outbound NACL rules in the protected subnet
+    
+Conditions:
+   isAZ1: !Not [!Equals [!Ref publicSubnet1Cidr, "" ]]
+   isAZ2: !Not [!Equals [!Ref publicSubnet2Cidr, "" ]]
+
+Resources:
+  vpc:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: !Ref vpcCidr
+      EnableDnsHostnames: !Ref vpcDnsEnabled
+      EnableDnsSupport: !Ref vpcDnsSupport
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-vpc-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+
+#subnets public 
+  publicSubnet1:
+    Condition: isAZ1
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      CidrBlock: !Ref publicSubnet1Cidr
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: !Ref publicIPActive
+      VpcId: !Ref vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-public-subnet1-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env   
+  publicSubnet2:
+    Condition: isAZ2
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      CidrBlock: !Ref publicSubnet2Cidr
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: !Ref publicIPActive
+      VpcId: !Ref vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-public-subnet2-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env  
+
+  #private subnet
+  privateSubnet1:
+    Condition: isAZ1
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      CidrBlock: !Ref privateSubnet1Cidr
+      AvailabilityZone: !Select [0, !GetAZs '']
+      VpcId: !Ref vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-private-subnet1-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+  privateSubnet2:
+    Condition: isAZ2
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      CidrBlock: !Ref privateSubnet2Cidr
+      AvailabilityZone: !Select [1, !GetAZs '']
+      VpcId: !Ref vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-private-subnet2-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+
+#protected subnet
+  protectedSubnet1:
+    Condition: isAZ1
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      CidrBlock: !Ref protectedSubnet1Cidr
+      AvailabilityZone: !Select [0, !GetAZs '']
+      VpcId: !Ref vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-protected-subnet1-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+  protectedSubnet2:
+    Condition: isAZ2
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      CidrBlock: !Ref protectedSubnet2Cidr
+      AvailabilityZone: !Select [1, !GetAZs '']
+      VpcId: !Ref vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-protected-subnet2-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+
+#VpcinternetGateway
+  internetGateWay:
+    Type: "AWS::EC2::InternetGateway"
+    Properties:
+      Tags:
+          - Key: Name
+            Value: !Sub "${project}-${env}-internetgateWay-${AWS::Region}"
+          - Key: project
+            Value: !Ref project
+          - Key: environment
+            Value: !Ref env    
+  internetGateWayAttachment:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    DependsOn: 
+      - vpc
+      - internetGateWay
+    Properties:
+      VpcId: !Ref vpc
+      InternetGatewayId: !Ref internetGateWay
+      
+#natGateway
+  natGateWay1:
+    Condition: isAZ1
+    Type: "AWS::EC2::NatGateway"
+    DependsOn: natGateWayElasticIP1
+    Properties:
+      SubnetId: !Ref publicSubnet1
+      AllocationId:  !GetAtt natGateWayElasticIP1.AllocationId
+      Tags:
+          - Key: Name
+            Value: !Sub "${project}-${env}-natgateway1-${AWS::Region}"
+          - Key: project
+            Value: !Ref project
+          - Key: environment
+            Value: !Ref env  
+  natGateWayElasticIP1:
+    Condition: isAZ1
+    Type: "AWS::EC2::EIP"
+    DependsOn: internetGateWayAttachment
+    Properties:
+      Domain: "vpc"
+      Tags:
+          - Key: Name
+            Value: !Sub "${project}-${env}-natGateWayElasticIP1-${AWS::Region}"
+          - Key: project
+            Value: !Ref project
+          - Key: environment
+            Value: !Ref env 
+
+#publicroutetable
+  routeTablePublic:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-public-routeTable-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+  routeTablePublicRoute01:
+    Type: "AWS::EC2::Route"
+    DependsOn: internetGateWayAttachment
+    Properties:
+      DestinationCidrBlock: !Ref vpcDestinationCidrBlockPublicRoute
+      RouteTableId: !Ref routeTablePublic
+      GatewayId: !Ref internetGateWay
+  routeTablePublicAssociation1:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref routeTablePublic
+      SubnetId: !Ref publicSubnet1
+  routeTablePublicAssociation2:
+    Condition: isAZ2
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref routeTablePublic
+      SubnetId: !Ref publicSubnet2
+  
+#privateroutetable
+  routeTablePrivate1:
+    Condition: isAZ1
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-private-routeTable1-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+  routeTablePrivate1Route01:
+    Condition: isAZ1
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: !Ref vpcDestinationCidrBlockPrivateRoute
+      RouteTableId: !Ref routeTablePrivate1
+      NatGatewayId: !Ref natGateWay1
+  routeTablePrivate1Association:
+    Condition: isAZ1
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref routeTablePrivate1
+      SubnetId: !Ref privateSubnet1
+
+  routeTablePrivate2:
+    Condition: isAZ2
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-private-routeTable2-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+  routeTablePrivate2Route01:
+    Condition: isAZ2
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: !Ref vpcDestinationCidrBlockPrivateRoute
+      RouteTableId: !Ref routeTablePrivate2
+      NatGatewayId: !Ref natGateWay1
+  routeTablePrivate2Association:
+    Condition: isAZ2
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref routeTablePrivate2
+      SubnetId: !Ref privateSubnet2
+  
+#protectedroutetable
+  routeTableProtected1:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-protected-routeTable1-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+  routeTableProtected1Route01:
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: !Ref vpcDestinationCidrBlockProtectedRoute
+      RouteTableId: !Ref routeTableProtected1
+      NatGatewayId: !Ref natGateWay1
+  routeTableProtected1Association:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref routeTableProtected1
+      SubnetId: !Ref protectedSubnet1
+  
+  routeTableProtected2:
+    Condition: isAZ2
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-protected-routeTable2-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+  routeTableProtected2Route01:
+    Condition: isAZ2
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: !Ref vpcDestinationCidrBlockProtectedRoute
+      RouteTableId: !Ref routeTableProtected2
+      NatGatewayId: !Ref natGateWay1
+  routeTableProtected2Association:
+    Condition: isAZ2
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref routeTableProtected2
+      SubnetId: !Ref protectedSubnet2 
+ 
+#PublicNacl
+  naclPublic01:
+    Condition: isAZ1
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId: !Ref vpc
+      Tags:
+          - Key: Name
+            Value: !Sub "${project}-${env}-naclPublic01-${AWS::Region}"
+          - Key: project
+            Value: !Ref project
+          - Key: environment
+            Value: !Ref env  
+  naclPublic01Ingress:
+    Condition: isAZ1
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref naclPublic01
+      RuleNumber: 100
+      Protocol: -1
+      RuleAction: allow
+      CidrBlock: !Ref vpcNaclPublicInboundCidr
+  naclPublic01Egress:
+    Condition: isAZ1
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref naclPublic01
+      RuleNumber: 120
+      Protocol: -1
+      Egress: True
+      RuleAction: allow
+      CidrBlock: !Ref vpcNaclPublicOutboundCidr   
+  naclAssociationPublicSubnet1:
+    Condition: isAZ1
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref publicSubnet1
+      NetworkAclId: !Ref naclPublic01
+  naclPublic02:
+    Condition: isAZ2
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId: !Ref vpc
+      Tags:
+          - Key: Name
+            Value: !Sub "${project}-${env}-publicNACL2-${AWS::Region}"
+          - Key: project
+            Value: !Ref project
+          - Key: environment
+            Value: !Ref env  
+  naclPublic02Ingress:
+    Condition: isAZ2
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref naclPublic02
+      RuleNumber: 100
+      Protocol: -1
+      RuleAction: allow
+      CidrBlock: !Ref vpcNaclPublicInboundCidr
+  naclPublic02Egress:
+    Condition: isAZ2
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref naclPublic02
+      RuleNumber: 120
+      Protocol: -1
+      Egress: True
+      RuleAction: allow
+      CidrBlock: !Ref vpcNaclPublicOutboundCidr  
+  naclAssociationPublicSubnet2:
+    Condition: isAZ2
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref publicSubnet2
+      NetworkAclId: !Ref naclPublic02
+
+#privateNacl
+  naclPrivate01:
+    Condition: isAZ1
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId: !Ref vpc
+      Tags:
+          - Key: Name
+            Value: !Sub "${project}-${env}-privateNACL1-${AWS::Region}"
+          - Key: project
+            Value: !Ref project
+          - Key: environment
+            Value: !Ref env  
+  naclPrivate01Ingress:
+    Condition: isAZ1
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref naclPrivate01
+      RuleNumber: 140
+      Protocol: -1
+      RuleAction: allow
+      CidrBlock: !Ref vpcNaclPrivateInboundCidr
+  naclPrivate01Egress:
+    Condition: isAZ1
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref naclPrivate01
+      RuleNumber: 150
+      Protocol: -1
+      Egress: True
+      RuleAction: allow
+      CidrBlock: !Ref vpcNaclPrivateOutboundCidr
+  naclAssociationPrivateSubnet1:
+    Condition: isAZ1
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref privateSubnet1
+      NetworkAclId: !Ref naclPrivate01
+  naclPrivate02:
+    Condition: isAZ2
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId: !Ref vpc
+      Tags:
+          - Key: Name
+            Value: !Sub "${project}-${env}-privateNACL2-${AWS::Region}"
+          - Key: project
+            Value: !Ref project
+          - Key: environment
+            Value: !Ref env  
+  naclPrivate02Ingress:
+    Condition: isAZ2
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref naclPrivate02
+      RuleNumber: 140
+      Protocol: -1
+      RuleAction: allow
+      CidrBlock: !Ref vpcNaclPrivateInboundCidr
+  naclPrivate02Egress:
+    Condition: isAZ2
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref naclPrivate02
+      RuleNumber: 150
+      Protocol: -1
+      Egress: True
+      RuleAction: allow
+      CidrBlock: !Ref vpcNaclPrivateOutboundCidr
+  naclAssociationPrivateSubnet2:
+    Condition: isAZ2
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref privateSubnet2
+      NetworkAclId: !Ref naclPrivate02
+
+#protectedNacl
+  naclProtected01:
+    Condition: isAZ1
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId: !Ref vpc
+      Tags:
+          - Key: Name
+            Value: !Sub "${project}-${env}-naclProtected01-${AWS::Region}"
+          - Key: project
+            Value: !Ref project
+          - Key: environment
+            Value: !Ref env  
+  naclProtected01Ingress:
+    Condition: isAZ1
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref naclProtected01
+      RuleNumber: 170
+      Protocol: -1
+      RuleAction: allow
+      CidrBlock: !Ref vpcNaclProtectedInboundCidr
+  naclProtected01Egress:
+    Condition: isAZ1
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref naclProtected01
+      RuleNumber: 170
+      Protocol: -1
+      Egress: True
+      RuleAction: allow
+      CidrBlock: !Ref vpcNaclProtectedOutboundCidr
+  naclAssociationProtectedSubnet1:
+    Condition: isAZ1
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref protectedSubnet1
+      NetworkAclId: !Ref naclProtected01
+  naclProtected02:
+    Condition: isAZ2
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId: !Ref vpc
+      Tags:
+          - Key: Name
+            Value: !Sub "${project}-${env}-protectedNACL2-${AWS::Region}"
+          - Key: project
+            Value: !Ref project
+          - Key: environment
+            Value: !Ref env  
+  naclProtected02Ingress:
+    Condition: isAZ2
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref naclProtected02
+      RuleNumber: 170
+      Protocol: -1
+      RuleAction: allow
+      CidrBlock: !Ref vpcNaclProtectedInboundCidr
+  naclProtected02Egress:
+    Condition: isAZ2
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref naclProtected02
+      RuleNumber: 170
+      Protocol: -1
+      Egress: True
+      RuleAction: allow
+      CidrBlock: !Ref vpcNaclProtectedOutboundCidr
+  naclAssociationProtectedSubnet2:
+    Condition: isAZ2
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref protectedSubnet2
+      NetworkAclId: !Ref naclProtected02
+
+Outputs:
+  vpcId:
+    Value: !Ref vpc
+    Export:
+      Name: !Sub "${project}-${env}-vpcId-${AWS::Region}"
+  publicSubnet1:
+    Condition: isAZ1
+    Value: !Ref publicSubnet1
+    Export:
+      Name: !Sub "${project}-${env}-publicSubnet1-${AWS::Region}"
+  publicSubnet2:
+    Condition: isAZ2
+    Value: !Ref publicSubnet2
+    Export:
+      Name: !Sub "${project}-${env}-publicSubnet2-${AWS::Region}"
+  privateSubnet1:
+    Condition: isAZ1
+    Value: !Ref privateSubnet1
+    Export:
+      Name: !Sub "${project}-${env}-privateSubnet1-${AWS::Region}"
+  privateSubnet2:
+    Condition: isAZ2
+    Value: !Ref privateSubnet2
+    Export:
+      Name: !Sub "${project}-${env}-privateSubnet2-${AWS::Region}"
+  protectedSubnet1:
+    Condition: isAZ1
+    Value: !Ref protectedSubnet1
+    Export:
+      Name: !Sub "${project}-${env}-protectedSubnet1-${AWS::Region}"
+  protectedSubnet2:
+    Condition: isAZ2
+    Value: !Ref protectedSubnet2
+    Export:
+      Name: !Sub "${project}-${env}-protectedSubnet2-${AWS::Region}"
+  natGateWay1:
+    Condition: isAZ1
+    Value: !Ref natGateWay1
+    Export:
+      Name: !Sub "${project}-${env}-natGateWay1-${AWS::Region}"
+  internetGateWay:
+    Condition: isAZ1
+    Value: !Ref internetGateWay
+    Export:
+      Name: !Sub "${project}-${env}-internetGateWay-${AWS::Region}"
+  natGateWayElasticIP1:
+    Condition: isAZ1
+    Value: !Ref natGateWayElasticIP1
+    Export:
+      Name: !Sub "${project}-${env}-natGateWayElasticIP1-${AWS::Region}"
+  

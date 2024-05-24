@@ -1,0 +1,31 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: 'Driver template to deploy the SSM parameter store'
+Parameters:
+  project:
+    Type: String
+    Default: cloudweb
+    Description:  Project Name
+  env:
+    Type: String
+    Default: prod
+    AllowedValues: [prod, dev, qa]
+    Description:  Environment Name
+  s3ArtifactPath:
+    Type: String
+    Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
+    Description: "Artifact Bucket path"
+
+Resources:
+  ssmParameterStore:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/ssmParameterStore/ssmParameterStore-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+
+Outputs:
+  ssmParameterStore:
+    Value: !Ref ssmParameterStore
+    Export:
+      Name: !Sub "${project}-${env}-ssmParameterStoreStack-${AWS::Region}"

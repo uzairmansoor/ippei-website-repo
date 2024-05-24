@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: 2010-09-09 
+Description: Driver template to create RDS
+Parameters:
+  project:
+    Type: String
+    Description:  Project Name
+    Default: cloudweb
+  env:
+    Type: String
+    Default: prod
+    AllowedValues: [prod, dev, qa]
+    Description:  Environment Name   
+  dBUsername:
+    Type: String
+    NoEcho: true
+    Description: The Username for database access
+  dBPassword:
+    Type: String
+    NoEcho: true
+    Description: The Password for database access
+  s3ArtifactPath:
+    Type: String
+    Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
+    Description: "Artifact bucket path"
+
+Resources:
+  rdsDbInstance:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/rds/rds-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        dBInstanceIdentifier: db
+        dbName: ""
+        dBSnapshotIdentifier: cloudweb-prod-cmpltbackupdeployment
+        dBInstanceClass: db.t3.micro
+        dbPrivateSubnet01: subnet-0126571e5b52dfc63
+        dbPrivateSubnet02: subnet-0ae43ba7746e80152
+        dbSecurityGroup: sg-0c89c05bf9cf8cb16
+        dbEncryptionStatus: true
+        dbPubliclyAccessible: false
+        dbStorageType: gp2
+        dbDeletionProtection: false
+        dBAllocatedStorage: 20
+        dBEngine: MySQL
+        dBUsername: !Ref dBUsername
+        dBPassword: !Ref dBPassword
+Outputs:
+  rdsInstance:
+    Value: !Ref rdsDbInstance
+    Export:
+      Name: !Sub "${project}-${env}-rdsDbInstance-${AWS::Region}"
+ 
+ 

@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Driver template to create the Load Balancer
+Parameters:
+  project:
+    Type: String
+    Default: cloudweb
+    Description:  Project Name  
+  env:
+    Type: String
+    AllowedValues: [prod, dev, qa]
+    Default: prod
+    Description:  Environment Name
+  s3ArtifactPath:
+    Type: String
+    Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
+    Description: "Artifact bucket path"
+Resources:
+  cloudWebLoadBalancer:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/loadbalancer/lb-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        lbHttpPort: 80
+        lbHttpsPort: 443
+        appCode: 200-499
+        statusCode: HTTP_301
+        vpcId: !GetAtt vpc.Outputs.vpcId
+        lbActionType: forward
+        lbTargetType: instance
+        lbSubnetIdA: !GetAtt vpc.Outputs.publicSubnet1
+        lbSecurityGroup: !GetAtt securityGroup.Outputs.sgPublicAlb
+        lbSubnetIdB: !GetAtt vpc.Outputs.publicSubnet2
+        loadBalancerName: prodloadBalancer
+        loadBalancerScheme: internet-facing
+        healthCheckIntervalSeconds: 30
+        healthCheckTimeoutSeconds: 15
+        healthyThresholdCount: 5
+        unHealthyThresholdCount: 3
+        ipAddressType: ipv4
+        loadBalancerMethod: round_robin
+        acmCertificateIdentifier: 683e0a0e-01c6-48e1-b5fe-83dfcbec9618
+        loadBalancerType: application
+        lbHttpsListenerSslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
+        lbHttpsProtocol: HTTPS
+        lbHttpProtocol: HTTP
+    
+Outputs:
+  cloudWebLoadBalancer:
+    Value: !Ref cloudWebLoadBalancer
+    Export:
+      Name: !Sub "${project}-${env}-cloudWebLoadBalancer-${AWS::Region}"
+ 

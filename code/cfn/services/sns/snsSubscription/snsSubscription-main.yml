@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Driver template create sns topic
+Parameters:
+  project:
+    Type: String
+    Default: cloudweb
+    Description:  Project Name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description:  Environment Name
+  s3ArtifactPath:
+    Type: String
+    Default: "https://cloudweb-wordpress-stag-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
+    Description: "Artifact bucket path"
+
+Resources:
+  snsSubscrip1ForCwAlarms:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - snsTopicForCwAlarms
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/sns/snsSubscription/snsSubscription-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        endpoint: uzair.mansoor@netsoltech.com
+        protocol: email
+        snsTopicArn: !GetAtt snsTopicForCwAlarms.Outputs.snsTopicArn
+        snsTopicName: !GetAtt snsTopicForCwAlarms.Outputs.snsTopicName
+
+  snsSubscrip2ForCwAlarms:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - snsTopicForCwAlarms
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/sns/snsSubscription/snsSubscription-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        endpoint: adeel.imtiaz@netsoltech.com
+        protocol: email
+        snsTopicArn: !GetAtt snsTopicForCwAlarms.Outputs.snsTopicArn
+        snsTopicName: !GetAtt snsTopicForCwAlarms.Outputs.snsTopicName
+
+  snsSubscripForTriggerScaleInAsgLambdaFunc:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - snsTopicForTriggerScaleInAsgLambdaFunc
+      - triggerScaleInAsgLambdaFunc
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/sns/snsSubscription/snsSubscription-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        endpoint: !GetAtt triggerScaleInAsgLambdaFunc.Outputs.lambdaFunctionArn
+        protocol: lambda
+        snsTopicArn: !GetAtt snsTopicForTriggerScaleInAsgLambdaFunc.Outputs.snsTopicArn
+        snsTopicName: !GetAtt snsTopicForTriggerScaleInAsgLambdaFunc.Outputs.snsTopicName
+
+Outputs:
+  snsSubscrip1ForCwAlarms:
+    Value: !Ref snsSubscrip1ForCwAlarms
+    Export:
+      Name: !Sub "${project}-${env}-snsSubscrip1ForCwAlarmsStack-${AWS::Region}"
+  snsSubscrip2ForCwAlarms:
+    Value: !Ref snsSubscrip2ForCwAlarms
+    Export:
+      Name: !Sub "${project}-${env}-snsSubscrip2ForCwAlarmsStack-${AWS::Region}"
+  snsSubscripForTriggerScaleInAsgLambdaFunc:
+    Value: !Ref snsSubscripForTriggerScaleInAsgLambdaFunc
+    Export:
+      Name: !Sub "${project}-${env}-snsSubscripForTriggerScaleInAsgLambdaFuncStack-${AWS::Region}"

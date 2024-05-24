@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Driver template create sns topic
+Parameters:
+  project:
+    Type: String
+    Default: cloudweb
+    Description:  Project Name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description:  Environment Name
+  s3ArtifactPath:
+    Type: String
+    Default: "https://cloudweb-wordpress-stag-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
+    Description: "Artifact bucket path"
+
+Resources:
+  snsTopicCwAlarms:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/snstopic/snsTopic-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        snsTopicName: !Sub "${project}-${env}-cwAlarmNotification-${AWS::Region}"
+        snsDisplayName: !Sub "${project}-${env}-cwAlarmNotification-${AWS::Region}"
+        endpoint: uzair.mansoor@netsoltech.com
+        protocol: email
+  
+  snsTopicForTriggerScaleInAsgLambdaFunc:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/snstopic/snsTopic-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        snsTopicName: scaleInAsgLambda
+        snsDisplayName: scaleInAsgLambda
+        endpoint: !GetAtt triggerScaleInAsgLambdaFunc.Outputs.lambdaFunctionArn
+        protocol: lambda
+Outputs:
+  snsTopicCwAlarms:
+    Value: !Ref snsTopicCwAlarms
+    Export:
+      Name: !Sub "${project}-${env}-snsTopicCwAlarmsStack-${AWS::Region}"
+  snsTopicForTriggerScaleInAsgLambdaFunc:
+    Value: !Ref snsTopicForTriggerScaleInAsgLambdaFunc
+    Export:
+      Name: !Sub "${project}-${env}-snsTopicForTriggerScaleInAsgLambdaFuncStack-${AWS::Region}"

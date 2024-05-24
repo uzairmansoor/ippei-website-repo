@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Driver Template to deploy the Autoscaling Group
+Parameters:
+  project:
+    Type: String
+    Default: cloudweb
+    Description:  Project Name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description:  Environment Name
+  s3ArtifactPath:
+    Type: String
+    Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
+    Description: "Artifact Bucket path"
+
+Resources:
+  ec2Autoscaling:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - vpc
+      - securityGroup
+      - cloudWebLoadBalancer
+      - iamRoles
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/autoscaling/autoscaling-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        launchTemplateEc2ImageId: ami-0409181f6a753b072
+        ec2InstanceType: t2.small
+        keyPairName: !Sub "${project}-${env}-${AWS::Region}-${AWS::AccountId}"
+        launchTemplateName: asgLaunchTemplate
+        autoScalingGroupName: AutoScalingGroup
+        privateSubnet1Id: !GetAtt vpc.Outputs.privateSubnet1
+        privateSubnet2Id: !GetAtt vpc.Outputs.privateSubnet2
+        autoScalingDesiredCapacity: 1
+        autoScalingMinSize: 1
+        autoScalingMaxSize: 2
+        sgEc2Web: !GetAtt securityGroup.Outputs.sgEc2Web
+        ebsVolumeSize: 30
+        ebsVolumeType: gp3
+        targetGroupArn: !GetAtt cloudWebLoadBalancer.Outputs.lbHttpsTargetGroup
+        ec2InstanceProfileName: !GetAtt iamRoles.Outputs.ec2InstanceProfileName
+        lifecycleHookDefaultResult: CONTINUE
+        asgLifecycleTransition: autoscaling:EC2_INSTANCE_LAUNCHING
+        lifecycleHeartbeatTimeout: 30
+        stepScalingAdjustmentType: ChangeInCapacity
+        stepScalingMetricAggregationType: Average
+        asgPolicyType: StepScaling
+        cpuScaleInMetricIntervalUpperBound: 0
+        cpuScaleInAdjustment: -1
+        cpuScaleOutMetricIntervalLowerBound: 0
+        cpuScaleOutAdjustment: 1
+        freeMemScaleInMetricIntervalLowerBound: 0
+        freeMemScaleInAdjustment: -1
+        freeMemScaleOutMetricIntervalUpperBound: 0
+        freeMemScaleOutAdjustment: 1
+        detailedMonitoring: true
+
+Outputs:
+  ec2AutoscalingStack:
+    Value: !Ref ec2Autoscaling
+    Export:
+      Name: !Sub "${project}-${env}-ec2Autoscaling-${AWS::Region}"

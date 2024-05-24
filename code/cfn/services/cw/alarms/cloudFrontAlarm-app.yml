@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Driver template to create cloudfront cloudwatch alarms
+Parameters:
+  project:
+    Type: String
+    Description:  Project name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description:  Environment name
+  region:
+    Type: String
+    Description: Name of region
+  cloudfrontAlarmName:
+    Type: String
+    Description: Name of the cloudfront alarm
+  snsTopicArn: 
+    Type: String
+    Description: Arn of SNS topic 
+  cloudfrontDistributionId:
+    Type: String
+    Description: Id of cloudfront distribution
+  cloudfrontMetricName:
+    Type: String
+    Description: Name of the cloudfront metric
+  cloudfrontNamespace:
+    Type: String
+    Description: Cloudwatch namespace of cloudfront 
+  cloudfrontStatistic:
+    Type: String
+    AllowedValues: [Average,Maximum,Minimum,Sum]
+    Description: Statistic for cloudfront total error rate
+  cloudfrontMetricUnit: 
+    Type: String
+    AllowedValues: [Count,Seconds,Percent,Bytes]
+    Description: Unit of the cloudfront total error rate metric
+  cloudfrontTotalErrorRateThreshold:
+    Type: String
+    Description: Threshold value of cloudfront total error rate
+  cloudfrontStatisticPeriod:
+    Type: String
+    Description: Time period over which the cloudfront statistic is applied
+  cloudfrontEvaluationperiods:
+    Type: String
+    Description: Evaluation periods of cloudfront total error rate metric
+
+Resources:
+  cfTotalErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${project}-${env}-${cloudfrontAlarmName}-${AWS::Region}"
+      AlarmDescription: !Sub "Trigger alarm when ${project} ${env} cloudfront total error rate is greater than or equal to ${cloudfrontTotalErrorRateThreshold}"
+      MetricName: !Ref cloudfrontMetricName
+      Namespace: !Ref cloudfrontNamespace
+      Statistic: !Ref cloudfrontStatistic
+      Period: !Ref cloudfrontStatisticPeriod
+      EvaluationPeriods: !Ref cloudfrontEvaluationperiods 
+      Threshold: !Ref cloudfrontTotalErrorRateThreshold
+      Unit: !Ref cloudfrontMetricUnit
+      AlarmActions:
+        - !Ref snsTopicArn
+      Dimensions:
+        - Name: Region
+          Value: !Ref region
+        - Name: DistributionId
+          Value: !Ref cloudfrontDistributionId
+      ComparisonOperator: GreaterThanThreshold
+Outputs:
+  cfTotalErrorRateAlarm:
+    Value: !Ref cfTotalErrorRateAlarm
+    Export:
+      Name: !Sub "${project}-${env}-cfTotalErrorRateAlarmName-${AWS::Region}-${AWS::AccountId}"

@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Driver template to deploy VPC
+Parameters:
+  project:
+    Type: String
+    Description:  Project Name
+    Default: cloudweb
+  env:
+    Type: String
+    AllowedValues: [prod, dev, qa]
+    Description:  Environment Name
+    Default: prod
+  s3ArtifactPath:
+    Type: String
+    Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
+    Description: "Artifact bucket path"
+
+Resources:
+  vpc:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/vpc/vpc-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        vpcCidr: 10.0.0.0/16
+        publicSubnet1Cidr: 10.0.1.0/24
+        publicSubnet2Cidr: 10.0.2.0/24
+        privateSubnet1Cidr: 10.0.3.0/24
+        privateSubnet2Cidr: 10.0.4.0/24
+        protectedSubnet1Cidr: 10.0.36.0/24
+        protectedSubnet2Cidr: 10.0.37.0/24
+        vpcDestinationCidrBlockPublicRoute: 0.0.0.0/0
+        vpcDestinationCidrBlockPrivateRoute: 0.0.0.0/0
+        vpcDestinationCidrBlockProtectedRoute: 0.0.0.0/0
+        vpcNaclPublicInboundCidr: 0.0.0.0/0
+        vpcNaclPublicOutboundCidr: 0.0.0.0/0
+        vpcNaclPrivateInboundCidr: 0.0.0.0/0
+        vpcNaclPrivateOutboundCidr: 0.0.0.0/0
+        vpcNaclProtectedInboundCidr: 10.0.0.0/16
+        vpcNaclProtectedOutboundCidr: 0.0.0.0/0
+        publicIPActive: True
+        vpcDnsEnabled: True
+        vpcDnsSupport: True
+      
+Outputs:
+  vpcId:
+    Value: !Ref vpc
+    Export:
+      Name: !Sub "${project}-${env}-vpc-${AWS::Region}"
+

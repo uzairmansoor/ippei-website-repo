@@ -1,0 +1,219 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template to create rds cloudwatch alarms
+Parameters:
+  project:
+    Type: String
+    Description:  Project Name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description:  Environment Name
+  snsTopicArn: 
+    Type: String
+    Description: Arn of SNS topic 
+  dBInstanceName:
+    Type: String
+    Description: Id of the RDS instance
+  lowRdsStorageAlarmName:
+    Type: String
+    Description: Alarm name for low RDS free storage
+  mediumRdsStorageAlarmName:
+    Type: String
+    Description: Alarm name for medium RDS free storage
+  highRdsStorageAlarmName:
+    Type: String
+    Description: Alarm name for high RDS free storage
+  freeStorageSpaceMetricName:
+    Type: String
+    Description: Name of RDS free storage metric
+  lowRdsCpuAlarmName:
+    Type: String
+    Description: Alarm name for low RDS cpu utilization
+  mediumRdsCpuAlarmName:
+    Type: String
+    Description: Alarm name for medium RDS cpu utilization
+  highRdsCpuAlarmName:
+    Type: String
+    Description: Alarm name for high RDS cpu utilization
+  cpuUtilizationMetricName:
+    Type: String
+    Description: Name of the cpu utilization metric
+  rdsNamespace:
+    Type: String
+    Description: Cloudwatch namespace of RDS
+  rdsFreeStorageStatistic:
+    Type: String
+    Description: Statistic for RDS free storage
+  rdsFreeStorageMetricUnit:
+    Type: String
+    AllowedValues: [Count,Seconds,Percent,Bytes]
+    Description: Unit of RDS free storage
+  rdsLowStorageThreshold:
+    Type: String
+    Description: Threshold value to compare with low RDS storage
+  rdsMediumStorageThreshold:
+    Type: String
+    Description: Threshold value to compare with medium RDS storage
+  rdsHighStorageThreshold:
+    Type: String
+    Description: Threshold value to compare with high RDS storage
+  rdsCpuUtilizationStatistic:
+    Type: String
+    AllowedValues: [Average,Maximum,Minimum,Sum]
+    Description: Statistic for RDS cpu utilization
+  rdsCpuUtilizationMetricUnit:
+    Type: String
+    AllowedValues: [Count,Seconds,Percent,Bytes]
+    Description: Unit of the RDS cpu utilization
+  rdsLowCpuUtilizationThreshold:
+    Type: String
+    Description: Threshold value to compare with low RDS cpu utilization
+  rdsMediumCpuUtilizationThreshold:
+    Type: String
+    Description: Threshold value to compare with medium RDS cpu utilization
+  rdsHighCpuUtilizationThreshold:
+    Type: String
+    Description: Threshold value to compare with high RDS cpu utilization
+  rdsStatisticPeriod:
+    Type: String
+    Description: Time period over which the RDS statistic applied
+  rdsEvaluationPeriods:
+    Type: String
+    Description: Evaluation period of RDS cloudwatch metrics
+
+Resources:  
+  rdsLowStorageAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${project}-${env}-${lowRdsStorageAlarmName}-${AWS::Region}"
+      AlarmDescription: !Sub "Trigger alarm when ${project} ${env} RDS storage is less than or equal to ${rdsLowStorageThreshold}"
+      MetricName: !Ref freeStorageSpaceMetricName
+      Namespace: !Ref rdsNamespace
+      Statistic: !Ref rdsFreeStorageStatistic
+      Unit: !Ref rdsFreeStorageMetricUnit
+      Period: !Ref rdsStatisticPeriod
+      EvaluationPeriods: !Ref rdsEvaluationPeriods
+      Threshold: !Ref rdsLowStorageThreshold
+      AlarmActions:
+        - !Ref snsTopicArn
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref dBInstanceName
+      ComparisonOperator: LessThanOrEqualToThreshold
+  rdsMediumStorageAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${project}-${env}-${mediumRdsStorageAlarmName}-${AWS::Region}"
+      AlarmDescription: !Sub "Trigger alarm when ${project} ${env} RDS storage is less than or equal to ${rdsMediumStorageThreshold}"
+      MetricName: !Ref freeStorageSpaceMetricName
+      Namespace: !Ref rdsNamespace
+      Statistic: !Ref rdsFreeStorageStatistic
+      Unit: !Ref rdsFreeStorageMetricUnit
+      Period: !Ref rdsStatisticPeriod
+      EvaluationPeriods: !Ref rdsEvaluationPeriods
+      Threshold: !Ref rdsMediumStorageThreshold
+      AlarmActions:
+        - !Ref snsTopicArn
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref dBInstanceName
+      ComparisonOperator: LessThanOrEqualToThreshold
+  rdsHighStorageAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${project}-${env}-${highRdsStorageAlarmName}-${AWS::Region}"
+      AlarmDescription: !Sub "Trigger alarm when ${project} ${env} RDS storage is less than or equal to ${rdsHighStorageThreshold}" 
+      MetricName: !Ref freeStorageSpaceMetricName
+      Namespace: !Ref rdsNamespace
+      Statistic: !Ref rdsFreeStorageStatistic
+      Unit: !Ref rdsFreeStorageMetricUnit
+      Period: !Ref rdsStatisticPeriod
+      EvaluationPeriods: !Ref rdsEvaluationPeriods
+      Threshold: !Ref rdsHighStorageThreshold
+      AlarmActions:
+        - !Ref snsTopicArn
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref dBInstanceName
+      ComparisonOperator: LessThanOrEqualToThreshold
+  rdsLowCpuAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${project}-${env}-${lowRdsCpuAlarmName}-${AWS::Region}"
+      AlarmDescription: !Sub "Trigger alarm when ${project} ${env} RDS CPU utilization is greater than or equal to ${rdsLowCpuUtilizationThreshold}"
+      MetricName: !Ref cpuUtilizationMetricName
+      Namespace: !Ref rdsNamespace
+      Statistic: !Ref rdsCpuUtilizationStatistic
+      Unit: !Ref rdsCpuUtilizationMetricUnit
+      Period: !Ref rdsStatisticPeriod
+      EvaluationPeriods: !Ref rdsEvaluationPeriods
+      Threshold: !Ref rdsLowCpuUtilizationThreshold
+      AlarmActions:
+        - !Ref snsTopicArn
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref dBInstanceName
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+  rdsMediumCpuAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${project}-${env}-${mediumRdsCpuAlarmName}-${AWS::Region}"
+      AlarmDescription: !Sub "Trigger alarm when ${project} ${env} RDS CPU utilization is greater than or equal to ${rdsMediumStorageThreshold}" 
+      MetricName: !Ref cpuUtilizationMetricName
+      Namespace: !Ref rdsNamespace
+      Statistic: !Ref rdsCpuUtilizationStatistic
+      Unit: !Ref rdsCpuUtilizationMetricUnit
+      Period: !Ref rdsStatisticPeriod
+      EvaluationPeriods: !Ref rdsEvaluationPeriods
+      Threshold: !Ref rdsMediumCpuUtilizationThreshold
+      AlarmActions:
+        - !Ref snsTopicArn
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref dBInstanceName
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+  rdsHighCpuAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${project}-${env}-${highRdsCpuAlarmName}-${AWS::Region}"
+      AlarmDescription: !Sub "Trigger alarm when ${project} ${env} RDS CPU utilization is greater than or equal to ${rdsHighCpuUtilizationThreshold}" 
+      MetricName: !Ref cpuUtilizationMetricName
+      Namespace: !Ref rdsNamespace
+      Statistic: !Ref rdsCpuUtilizationStatistic
+      Unit: !Ref rdsCpuUtilizationMetricUnit
+      Period: !Ref rdsStatisticPeriod
+      EvaluationPeriods: !Ref rdsEvaluationPeriods
+      Threshold: !Ref rdsHighCpuUtilizationThreshold
+      AlarmActions:
+        - !Ref snsTopicArn
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref dBInstanceName
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+
+Outputs:
+  rdsLowStorageAlarm:
+    Value: !Ref rdsLowStorageAlarm
+    Export:
+      Name: !Sub "${project}-${env}-rdsLowStorageAlarmName-${AWS::Region}"
+  rdsMediumStorageAlarm:
+    Value: !Ref rdsMediumStorageAlarm
+    Export:
+      Name: !Sub "${project}-${env}-rdsMediumStorageAlarmName-${AWS::Region}"
+  rdsHighStorageAlarm:
+    Value: !Ref rdsHighStorageAlarm
+    Export:
+      Name: !Sub "${project}-${env}-rdsHighStorageAlarmName-${AWS::Region}"
+  rdsLowCpuAlarm:
+    Value: !Ref rdsLowCpuAlarm
+    Export:
+      Name: !Sub "${project}-${env}-rdsLowCpuAlarmName-${AWS::Region}"
+  rdsMediumCpuAlarm:
+    Value: !Ref rdsMediumCpuAlarm
+    Export:
+      Name: !Sub "${project}-${env}-rdsMediumCpuAlarmName-${AWS::Region}"
+  rdsHighCpuAlarm:
+    Value: !Ref rdsHighCpuAlarm
+    Export:
+      Name: !Sub "${project}-${env}-rdsHighCpuAlarmName-${AWS::Region}"

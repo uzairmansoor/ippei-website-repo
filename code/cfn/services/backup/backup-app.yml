@@ -1,0 +1,107 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Template to create the backup 
+Parameters:
+  project:
+    Type: String
+    Description:  Project Name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description:  Environment Name
+  newBackupVault:
+    Type: String
+    Default: true
+    AllowedValues: [true, false]
+  backupVaultName:
+    Type: String
+    Description: Name of backup vault
+  backupPlanName:
+    Type: String
+    Description: Name for BackupPlan
+  backupSelectionName:
+    Type: String
+    Description: Name for resource assignment
+  backupPolicy:
+    Type: String
+    Default: BackupOnceDaily
+    AllowedValues: [BackupOnceDaily, BackupTwiceDaily , BackupThriceDaily]
+    Description: AWS Backup frequency choose between backup once, twice, thrice or four times a day
+  backupIamRoleArn:
+    Type: String
+    Description: IAM service role for the BackupSelection
+  backupDeleteAfterDays:
+    Type: Number 
+    Default: 10
+    MinValue: 1
+    MaxValue: 100
+    Description: Number of days after the backup will be deleted
+  backupTargetRegion:
+    Type: String
+    Default: us-west-1
+    Description: Target region for backup
+  backukScheduleExpression:
+    Type: String
+    Description: CRON expression to initiates a backup job
+  backupStartWindowMinutes:
+    Type: Number 
+    Default: 60
+    MinValue: 60
+    MaxValue: 600
+    Description: Time when backup job is successfully started
+  backupCompletionWindowMinutes:
+    Type: Number 
+    Default: 120
+    MinValue: 120
+    MaxValue: 600
+    Description: Time when backup job is successfully completed
+  awsResource:
+    Type: String
+    AllowedValues: [DB, ec2Instance]
+    Description: AWS resource whose backup initiated  
+    
+Conditions:
+  createNewVault: !Equals [ !Ref newBackupVault, "true" ]
+  
+Resources:
+  backupVault:
+    Type: AWS::Backup::BackupVault
+    Condition: createNewVault
+    Properties:
+      BackupVaultName: !Sub "${project}-${env}-${backupVaultName}-${AWS::Region}"
+      
+  backupPlan:
+    Type: AWS::Backup::BackupPlan
+    Properties:
+      BackupPlan:
+        BackupPlanName: !Sub "${project}-${env}-${backupPlanName}-${AWS::Region}"
+        BackupPlanRule:
+          - RuleName: !Ref backupPolicy
+            ScheduleExpression: !Ref backukScheduleExpression 
+            TargetBackupVault:  !Ref backupVault
+            StartWindowMinutes: !Ref backupStartWindowMinutes 
+            CompletionWindowMinutes: !Ref backupCompletionWindowMinutes 
+            Lifecycle: 
+              DeleteAfterDays: !Ref backupDeleteAfterDays 
+            CopyActions:
+              - DestinationBackupVaultArn: !Sub "arn:aws:backup:${backupTargetRegion}:${AWS::AccountId}:backup-vault:Default"
+                Lifecycle:
+                   DeleteAfterDays: !Ref backupDeleteAfterDays
+ 
+  backupSelection:
+    Type: AWS::Backup::BackupSelection
+    DependsOn: backupPlan
+    Properties:
+      BackupPlanId: !Ref backupPlan
+      BackupSelection: 
+        SelectionName: !Ref backupSelectionName
+        IamRoleArn: !Ref backupIamRoleArn
+        ListOfTags:    
+         -    
+           ConditionType: "STRINGEQUALS"    
+           ConditionKey: Name
+           ConditionValue: !Sub "${project}-${env}-${awsResource}-${AWS::Region}"
+          
+Outputs:
+  backupPlan:
+    Value: !GetAtt backupPlan.BackupPlanId

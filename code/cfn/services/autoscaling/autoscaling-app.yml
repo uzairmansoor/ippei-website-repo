@@ -1,0 +1,284 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: 'Template to deploy the Autoscaling Group'
+
+Parameters:
+  project:
+    Type: String
+    Description:  Project Name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description:  Environment Name
+  launchTemplateEc2ImageId:
+    Type: String
+    Description: AMI ID for launch template
+  ec2InstanceType:
+    Type: String
+    Description: Instance type of EC2 for launch template
+  launchTemplateName:
+    Type: String
+    Description: Name for the launch template
+  autoScalingGroupName:
+    Type: String
+    Description: Name of the Auto Scaling group
+  privateSubnet1Id:
+    Type: AWS::EC2::Subnet::Id
+    Description: Private Subnet 1 ID
+  privateSubnet2Id:
+    Type: AWS::EC2::Subnet::Id
+    Description: Private Subnet 2 ID
+  autoScalingMinSize:
+    Type: Number
+    Description: Minimum number of instances
+  autoScalingMaxSize:
+    Type: Number
+    Description: Maximum number of instances
+  keyPairName:
+    Type: String
+    Description: Key Pair Name
+  sgEc2Web:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security Group for Web traffic
+  targetGroupArn:
+    Type: String
+    Description: ARN of Target Group of Load Balancer
+  ebsVolumeSize:
+    Type: Number 
+    Default: 30
+    Description: Size of the Ebs volume, in GiBs
+  ebsVolumeType:
+    Type: String
+    AllowedValues: [io1 , gp3 , gp2]
+    Default: gp3
+    Description: Type of the Ebs volume
+  autoScalingDesiredCapacity:
+    Type: Number
+    Description: Desire number of instances
+  ec2InstanceProfileName:
+    Type: String 
+    Description: Name of the ec2 instance server profile
+  lifecycleHookDefaultResult:
+    Type: String
+    Default: CONTINUE
+    AllowedValues: [CONTINUE, ABANDON]
+    Description: Auto scaling group takes action when the lifecycle hook timeout elapses
+  asgLifecycleTransition:
+    Type: String
+    Default: autoscaling:EC2_INSTANCE_LAUNCHING
+    AllowedValues: [autoscaling:EC2_INSTANCE_LAUNCHING , autoscaling:EC2_INSTANCE_TERMINATING]
+    Description: Lifecycle transition of an instance in auto scaling group
+  lifecycleHeartbeatTimeout:
+    Type: String
+    Description: Maximum time (in seconds) that can elapse before the lifecycle hook times out
+  stepScalingAdjustmentType:
+    Type: String
+    Default: ChangeInCapacity
+    AllowedValues: [ChangeInCapacity , ExactCapacity , PercentChangeInCapacity]
+    Description: The interpretation of the scaling adjustment, whether it is represented as an absolute number or a percentage
+  stepScalingMetricAggregationType:
+    Type: String
+    Default: Average
+    AllowedValues: [Minimum , Maximum , Average]
+    Description: The aggregation type for the CloudWatch metrics
+  asgPolicyType: 
+    Type: String
+    Default: StepScaling
+    AllowedValues: [StepScaling , TargetTrackingScaling , SimpleScaling, PredictiveScaling]
+    Description: Type of scaling policy
+  cpuScaleInAdjustment:
+    Type: String
+    Default: -1
+    Description: The amount by which to scale in, based on the specified adjustment type
+  cpuScaleOutAdjustment:
+    Type: String
+    Default: 1
+    Description: The amount by which to scale out, based on the specified adjustment type
+  freeMemScaleInAdjustment:
+    Type: String
+    Default: -1
+    Description: The amount by which to scale in, based on the specified adjustment type
+  freeMemScaleOutAdjustment:
+    Type: String
+    Default: 1
+    Description: The amount by which to scale out, based on the specified adjustment type
+  cpuScaleInMetricIntervalUpperBound:
+    Type: String
+    Description: The upper bound for the difference between the alarm threshold and the CloudWatch metric
+  cpuScaleOutMetricIntervalLowerBound:
+    Type: String
+    Description: The upper bound for the difference between the alarm threshold and the CloudWatch metric
+  freeMemScaleInMetricIntervalLowerBound:
+    Type: String
+    Description: The lower bound for the difference between the alarm threshold and the CloudWatch metric
+  freeMemScaleOutMetricIntervalUpperBound:
+    Type: String
+    Description: The upper bound for the difference between the alarm threshold and the CloudWatch metric
+  detailedMonitoring:
+    Type: String
+    Default: true
+    AllowedValues: [true , false]
+    Description: Enable or disable detailed cloudwatch monitoring
+  memUtilSSMParamStoreName:
+    Type: String
+    Description: Name of a memory utilization parameter store
+  diskUtilSSMParamStoreName:
+    Type: String
+    Description: Name of a disk utilization parameter store
+  ssmAssociationName:
+    Type: String
+    Description: Name of an SSM asscoiation
+  regionName:
+    Type: String
+    Default: us-east-1
+    Description: Region Name
+
+Resources:
+  autoscalingLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Ref launchTemplateName
+      LaunchTemplateData:
+        ImageId: !Ref launchTemplateEc2ImageId
+        InstanceType: !Ref ec2InstanceType
+        IamInstanceProfile: 
+          Name: !Ref ec2InstanceProfileName
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: !Sub "${project}-${env}-ec2Instance-${AWS::Region}"
+              - Key: project
+                Value: !Ref project
+              - Key: environment
+                Value: !Ref env
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              VolumeSize: !Ref ebsVolumeSize
+              VolumeType: !Ref ebsVolumeType
+        KeyName: !Ref keyPairName
+        Monitoring:
+          Enabled: !Ref detailedMonitoring
+        SecurityGroupIds:
+          - !Ref sgEc2Web
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            sudo su
+            wget https://s3.amazonaws.com/amazoncloudwatch-agent/linux/amd64/latest/AmazonCloudWatchAgent.zip
+            unzip AmazonCloudWatchAgent.zip
+            sudo ./install.sh
+            sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a start
+            sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -m ec2 -a status
+            sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:${memUtilSSMParamStoreName} -s
+            sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:${diskUtilSSMParamStoreName} -s
+            mkdir /ssmagent
+            cd /ssmagent
+            wget https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb
+            sudo dpkg -i amazon-ssm-agent.deb
+            sudo systemctl enable amazon-ssm-agent
+            sudo systemctl status amazon-ssm-agent
+            sudo apt-get install bc
+            aws ssm create-association --name "${ssmAssociationName}" --targets "Key=InstanceIds,Values=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)" --region ${regionName}
+            sudo /opt/bitnami/ctlscript.sh restart php-fpm
+            sudo /opt/bitnami/ctlscript.sh restart apache
+      
+  autoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Ref autoScalingGroupName
+      VPCZoneIdentifier:
+        - !Ref privateSubnet1Id
+        - !Ref privateSubnet2Id
+      LaunchTemplate:
+        LaunchTemplateId: !Ref autoscalingLaunchTemplate
+        Version: !GetAtt autoscalingLaunchTemplate.LatestVersionNumber
+      LifecycleHookSpecificationList:
+        - DefaultResult: !Ref lifecycleHookDefaultResult
+          HeartbeatTimeout: !Ref lifecycleHeartbeatTimeout
+          LifecycleHookName: !Sub "${project}-${env}-TriggerLambda-${AWS::Region}"
+          LifecycleTransition: !Ref asgLifecycleTransition
+      HealthCheckType: EC2
+      DesiredCapacity: !Ref autoScalingDesiredCapacity
+      MaxSize: !Ref autoScalingMaxSize
+      MinSize: !Ref autoScalingMinSize
+      TerminationPolicies:
+        - OldestLaunchTemplate
+        - OldestInstance
+      TargetGroupARNs:
+        - !Ref targetGroupArn
+
+  cpuScaleInStepScalingPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: !Ref stepScalingAdjustmentType
+      AutoScalingGroupName: !Ref autoScalingGroup
+      MetricAggregationType: !Ref stepScalingMetricAggregationType
+      PolicyName: !Sub "${project}-${env}-cpuScaleInStepScalingPolicy"
+      PolicyType: !Ref asgPolicyType
+      StepAdjustments:
+        - MetricIntervalUpperBound: !Ref cpuScaleInMetricIntervalUpperBound
+          ScalingAdjustment: !Ref cpuScaleInAdjustment
+  
+  cpuScaleOutStepScalingPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: !Ref stepScalingAdjustmentType
+      AutoScalingGroupName: !Ref autoScalingGroup
+      MetricAggregationType: !Ref stepScalingMetricAggregationType
+      PolicyName: !Sub "${project}-${env}-cpuScaleOutStepScalingPolicy"
+      PolicyType: !Ref asgPolicyType
+      StepAdjustments:
+        - MetricIntervalLowerBound: !Ref cpuScaleOutMetricIntervalLowerBound
+          ScalingAdjustment: !Ref cpuScaleOutAdjustment
+  
+  freeMemScaleInStepScalingPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: !Ref stepScalingAdjustmentType
+      AutoScalingGroupName: !Ref autoScalingGroup
+      MetricAggregationType: !Ref stepScalingMetricAggregationType
+      PolicyName: !Sub "${project}-${env}-freeMemScaleInStepScalingPolicy"
+      PolicyType: !Ref asgPolicyType
+      StepAdjustments:
+        - MetricIntervalLowerBound: !Ref freeMemScaleInMetricIntervalLowerBound
+          ScalingAdjustment: !Ref freeMemScaleInAdjustment
+  
+  freeMemScaleOutStepScalingPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: !Ref stepScalingAdjustmentType
+      AutoScalingGroupName: !Ref autoScalingGroup
+      MetricAggregationType: !Ref stepScalingMetricAggregationType
+      PolicyName: !Sub "${project}-${env}-freeMemScaleOutStepScalingPolicy"
+      PolicyType: !Ref asgPolicyType
+      StepAdjustments:
+        - MetricIntervalUpperBound: !Ref freeMemScaleOutMetricIntervalUpperBound
+          ScalingAdjustment: !Ref freeMemScaleOutAdjustment
+
+Outputs:
+  autoscalingLaunchTemplateId:
+    Value: !Ref autoscalingLaunchTemplate
+    Export:
+      Name: !Sub "${project}-${env}-autoscalingLaunchTemplateId-${AWS::Region}"
+  autoScalingGroupName:
+    Value: !Ref autoScalingGroup
+    Export:
+      Name: !Sub "${project}-${env}-autoScalingGroupName-${AWS::Region}"
+  cpuScaleInStepScalingPolicyArn:
+    Value: !Ref cpuScaleInStepScalingPolicy
+    Export:
+      Name: !Sub "${project}-${env}-cpuScaleInStepScalingPolicyArn-${AWS::Region}"
+  cpuScaleOutStepScalingPolicyArn:
+    Value: !Ref cpuScaleOutStepScalingPolicy
+    Export:
+      Name: !Sub "${project}-${env}-cpuScaleOutStepScalingPolicyArn-${AWS::Region}"
+  freeMemScaleInStepScalingPolicyArn:
+    Value: !Ref freeMemScaleInStepScalingPolicy
+    Export:
+      Name: !Sub "${project}-${env}-freeMemScaleInStepScalingPolicyArn-${AWS::Region}"
+  freeMemScaleOutStepScalingPolicyArn:
+    Value: !Ref freeMemScaleOutStepScalingPolicy
+    Export:
+      Name: !Sub "${project}-${env}-freeMemScaleOutStepScalingPolicyArn-${AWS::Region}"

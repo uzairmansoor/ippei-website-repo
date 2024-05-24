@@ -1,0 +1,236 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Template to create the Load Balancer
+Parameters:
+  project:
+    Type: String
+    Description:  Project Name  
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description:  Environment Name
+  vpcId:
+    Type: String
+    Description: ID of the VPC
+  lbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Id of the security group
+  lbSubnetIdA:
+    Type: AWS::EC2::Subnet::Id
+    Description: Id of subnet A
+  lbSubnetIdB:
+    Type: AWS::EC2::Subnet::Id
+    Description: Id of subnet B
+  loadBalancerName:
+    Type: String
+    Description: Name of Load Balancer
+  loadBalancerScheme:
+    Type: String
+    Description: Scheme of load Balancer
+  healthCheckIntervalSeconds:
+    Type: Number 
+    Default: 30
+    MinValue: 5
+    MaxValue: 300
+    Description: Health Check Interval in Seconds
+  healthCheckTimeoutSeconds:
+    Type: Number 
+    Default: 15
+    MinValue: 2
+    MaxValue: 120
+    Description: Health Check Timeout in Seconds
+  healthyThresholdCount:
+    Type: Number 
+    Default: 5
+    MinValue: 1
+    MaxValue: 10
+    Description: Healthy Threshold Count
+  unHealthyThresholdCount:
+    Type: Number 
+    Default: 3
+    MinValue: 1
+    MaxValue: 10
+    Description: UnHealthy Threshold Count
+  loadBalancerMethod:
+    Type: String
+    Description: Load balancer algorithm
+  lbActionType: 
+    Type: String
+    Description: Actions for the default rule
+  lbHttpPort: 
+    Type: String
+    Default: 80
+    Description: Http port on which the load balancer is listening
+  ipAddressType: 
+    Type: String
+    Default: ipv4
+    AllowedValues: [ipv4, ipv6]
+    Description: IP address type
+  lbHttpsPort: 
+    Type: String
+    Default: 443
+    Description: Https port on which the load balancer is listening
+  appCode: 
+    Type: String
+    Default: 200-499
+    Description: Code to check a successful response from a target
+  lbTargetType:  
+    Type: String
+    Description: Type of target with in target group
+  statusCode:
+    Type: String
+    Default: HTTP_301
+    AllowedValues: [HTTP_301, HTTP_302]
+    Description: HTTP redirect code
+  acmCertificateIdentifier:
+    Type: String
+    Description: Certificate Identifier
+  loadBalancerType:
+    Type: String
+    Default: application
+    AllowedValues: [application, gateway, network]
+    Description: Type of load balancer
+  lbHttpsListenerSslPolicy:
+    Type: String
+    Description: Load balancer security policy that defines which protocols (HTTPS & TLS) and ciphers are supported
+  lbHttpsProtocol:
+    Type: String
+    Default: HTTPS
+    Description: HTTPS protocol for load balancer listener
+  lbHttpProtocol:
+    Type: String
+    Default: HTTP
+    Description: HTTP protocol for load balancer listener
+  enableAccessLogs:
+    Type: String
+    Default: true
+    Description: Select true to enable access logs of an ALB otherwise false
+  s3BucketNameForAccessLogs:
+    Type: String
+    Description: Name of the S3 bucket for the access logs
+  prefixOfS3BucketForAccessLogs:
+    Type: String
+    Description: Prefix for the location in the S3 bucket for the access logs
+
+Conditions:
+  isEnableAccessLogs: !Equals [!Ref enableAccessLogs, true]
+  
+Resources:
+  loadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Ref loadBalancerName
+      Scheme: !Ref loadBalancerScheme 
+      Type: !Ref loadBalancerType
+      LoadBalancerAttributes:
+        - !If
+          - isEnableAccessLogs
+          - Key: access_logs.s3.enabled
+            Value: !Ref enableAccessLogs
+          - !Ref 'AWS::NoValue'
+        - !If
+          - isEnableAccessLogs
+          - Key: access_logs.s3.bucket
+            Value: !Ref s3BucketNameForAccessLogs
+          - !Ref 'AWS::NoValue'
+        - !If
+          - isEnableAccessLogs
+          - Key: access_logs.s3.prefix
+            Value: !Ref prefixOfS3BucketForAccessLogs
+          - !Ref 'AWS::NoValue'
+      Subnets:
+        - !Ref lbSubnetIdA
+        - !Ref lbSubnetIdB
+      SecurityGroups:
+        - !Ref lbSecurityGroup
+      IpAddressType: !Ref ipAddressType  
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-loadBalancer-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+  lbHttpsListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref loadBalancer
+      Port: !Ref lbHttpsPort
+      Protocol: !Ref lbHttpsProtocol
+      SslPolicy: !Ref lbHttpsListenerSslPolicy
+      Certificates:
+        - !Sub arn:aws:acm:${AWS::Region}:${AWS::AccountId}:certificate/${acmCertificateIdentifier}
+      DefaultActions:
+        - Type: !Ref lbActionType
+          TargetGroupArn: !Ref lbHttpsTargetGroup
+  lbHttpListener:
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    Properties:
+      LoadBalancerArn: !Ref loadBalancer
+      DefaultActions:
+        - Type: "redirect"
+          RedirectConfig:
+            Protocol: !Ref lbHttpsProtocol
+            Port: !Ref lbHttpsPort
+            Host: "#{host}"
+            Path: "/#{path}"
+            Query: "#{query}"
+            StatusCode: !Ref statusCode
+      Port: !Ref lbHttpPort
+      Protocol: !Ref lbHttpProtocol
+  
+  lbHttpsTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref vpcId
+      HealthCheckIntervalSeconds: !Ref healthCheckIntervalSeconds 
+      HealthCheckProtocol: !Ref lbHttpsProtocol
+      HealthCheckTimeoutSeconds: !Ref healthCheckTimeoutSeconds 
+      HealthyThresholdCount:  !Ref healthyThresholdCount 
+      UnhealthyThresholdCount: !Ref unHealthyThresholdCount
+      Matcher:
+        HttpCode: !Ref appCode
+      Name: !Sub "${project}-${env}-lbHttpsTG"
+      Port: !Ref lbHttpsPort
+      Protocol: !Ref lbHttpsProtocol
+      TargetType: !Ref lbTargetType
+      TargetGroupAttributes:
+        - Key: load_balancing.algorithm.type
+          Value: !Ref loadBalancerMethod 
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-lbHttpsTargetGroup-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+  
+Outputs:
+  loadBalancerArn:
+    Value: !Ref loadBalancer
+    Export:
+      Name: !Sub "${project}-${env}-loadBalancerArn-${AWS::Region}"
+  lbDnsName:
+    Value: !GetAtt loadBalancer.DNSName
+    Export:
+      Name: !Sub "${project}-${env}-lbDnsname-${AWS::Region}"
+  lbFullName:
+    Value: !GetAtt loadBalancer.LoadBalancerFullName
+    Export:
+      Name: !Sub "${project}-${env}-lbFullName-${AWS::Region}"
+  lbHttpListener:
+    Value: !GetAtt lbHttpListener.ListenerArn
+    Export:
+      Name: !Sub "${project}-${env}-lbHttpListener-${AWS::Region}"
+  lbHttpsListener:
+    Value: !GetAtt lbHttpsListener.ListenerArn
+    Export:
+      Name: !Sub "${project}-${env}-lbHttpsListener-${AWS::Region}"
+  lbTargetGroupFullName:
+    Value: !GetAtt lbHttpsTargetGroup.TargetGroupFullName
+    Export:
+      Name: !Sub "${project}-${env}-lbTargetGroupFullName-${AWS::Region}"
+  lbTargetGroupArn:
+    Value: !GetAtt lbHttpsTargetGroup.TargetGroupArn
+    Export:
+      Name: !Sub "${project}-${env}-lbTargetGroupArn-${AWS::Region}"

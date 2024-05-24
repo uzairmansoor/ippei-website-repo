@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Driver Template to deploy the cloudwatch event rules
+Parameters:
+  project:
+    Type: String
+    Default: cloudweb
+    Description:  Project Name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description:  Environment Name
+  s3ArtifactPath:
+    Type: String
+    Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
+    Description: "Artifact Bucket path"
+
+Resources:
+  cloudWatchEventRules:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/cw/eventRules/cloudWatchEventRules-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        autoScalingGroupName: !Sub "${project}-${env}-AutoScalingGroup"
+        customAlarmsLambdaFunctionArn: !GetAtt lambdaFunctions.Outputs.customAlarmsLambdaFunctionArn
+        customAlarmsCWEventRuleState: ENABLED
+        eventPatternSource: aws.autoscaling
+        eventPatternDetailType: EC2 Instance-launch Lifecycle Action
+        ec2EventPatternSource: aws.ec2
+        amiStateChangeDetailType: EC2 AMI State Change
+        amiState: available
+        ec2AmiStateChangeEventRuleState: ENABLED
+        asgLaunchTemplateLambdaFunctionArn: !GetAtt lambdaFunctions.Outputs.asgLaunchTemplateLambdaFunctionArn
+
+Outputs:
+  cloudWatchEventRules:
+    Value: !Ref cloudWatchEventRules
+    Export:
+      Name: !Sub "${project}-${env}-cloudwatchEventRulesStack-${AWS::Region}"

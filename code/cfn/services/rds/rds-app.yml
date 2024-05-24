@@ -1,0 +1,142 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Template to deploy rds instance
+Parameters:
+  project:
+    Type: String
+    Description:  Project Name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description:  Environment Name
+  dBInstanceIdentifier:
+    Type: String
+    Description: Name for the DB instance
+  dbName: 
+    Type: String
+    Description: Name for the DB 
+  dBInstanceClass:
+    Type: String
+    Description: Class for the DB instance
+  dBAllocatedStorage:
+    Type: Number 
+    Default: 10
+    MinValue: 1
+    MaxValue: 100
+    Description: Amount of storage for database instance
+  dBEngine:
+    Type: String
+    Description: Database engine that you want to use for this DB instance
+  dBUsername:
+    Type: String
+    NoEcho: true
+    Description: Username for database access
+  dBPassword:
+    Type: String
+    NoEcho: true
+    Description: Password for database access
+  dbDeletionProtection:
+    Type: String
+    Default: true
+    AllowedValues: [true, false]
+    Description: Select true to enable deletion protection on database and false to disable
+  dbEngineVersion:
+    Type: String
+    Default: 8.0
+    Description: Version number of database engine 
+  dbPort:
+    Type: String
+    Default: 3306
+    Description: The port number on which the database accepts connections
+  dbEncryptionStatus:
+    Type: String
+    Default: true
+    AllowedValues: [true, false]
+    Description: Select true to enable encryption on DB instance and false to disable 
+  dbPrivateSubnet01:
+    Type: AWS::EC2::Subnet::Id
+    Description: Id of subnet for the DB cluster
+  dbPrivateSubnet02:
+    Type: AWS::EC2::Subnet::Id
+    Description: Id of subnet for the DB cluster
+  dbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Id of the security group
+  dbPubliclyAccessible:
+    Type: String
+    Default: true
+    AllowedValues: [true, false]
+    Description: Select true to create the DB instance internet-facing and false to make it private
+  dbStorageType:
+    Type: String
+    Default: gp2
+    AllowedValues: [standard, io1 , gp2]
+    Description: Storage type for DB instance
+  dBSnapshotIdentifier:
+    Type: String
+    Default: ""
+    Description: The RDS MySQL snapshot name to restore to the new DB instance
+  kmsKeyId:
+    Type: String
+    Description: Id of the KMS key that is used to encrypt the database
+   
+Conditions: 
+  enableEncryption: !Equals [!Ref dbEncryptionStatus, true]
+  useDbSnapshot: !Not [!Equals [!Ref dBSnapshotIdentifier, "" ]]
+   
+Resources:
+  dbSubnetGroup:
+    Type: "AWS::RDS::DBSubnetGroup"
+    Properties:
+        DBSubnetGroupDescription: "Subnet Group for database"
+        DBSubnetGroupName: !Sub "${project}-${dBInstanceIdentifier}-${env}-${AWS::Region}"
+        SubnetIds: 
+          - !Ref dbPrivateSubnet01
+          - !Ref dbPrivateSubnet02
+        Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-${dBInstanceIdentifier}-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+   
+  dbInstance:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      DBInstanceIdentifier: !Sub "${project}-${dBInstanceIdentifier}-${env}-${AWS::Region}"
+      DBName: !If [useDbSnapshot,  !Ref "AWS::NoValue" , !Ref dbName]
+      Port: !Ref dbPort
+      DBSubnetGroupName: !Ref dbSubnetGroup
+      DBInstanceClass: !Ref dBInstanceClass
+      AllocatedStorage: !Ref dBAllocatedStorage
+      Engine: !Ref dBEngine
+      EngineVersion: !Ref dbEngineVersion
+      StorageType: !Ref dbStorageType
+      DBSnapshotIdentifier: !If [useDbSnapshot, !Ref dBSnapshotIdentifier , !Ref "AWS::NoValue" ]
+      DeletionProtection: !Ref dbDeletionProtection
+      StorageEncrypted: !If [enableEncryption, !Ref dbEncryptionStatus, !Ref "AWS::NoValue"]
+      KmsKeyId: !Ref kmsKeyId
+      PubliclyAccessible: !Ref dbPubliclyAccessible
+      MasterUsername: !Ref dBUsername
+      MasterUserPassword: !Ref dBPassword
+      VPCSecurityGroups: 
+        - !Ref dbSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-DB-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env   
+ 
+Outputs:
+  dbInstanceArn:
+    Value: !GetAtt dbInstance.DBInstanceArn
+    Export:
+      Name: !Sub "${project}-${env}-rdsInstanceArn-${AWS::Region}"
+  dBInstanceIdentifier:
+    Value: !Ref dbInstance
+    Export:
+      Name: !Sub "${project}-${env}-rdsInstance-${AWS::Region}"
+   

@@ -1,0 +1,147 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template to create alb cloudwatch alarms
+Parameters:
+  project:
+    Type: String
+    Description:  Project name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description:  Environment name
+  snsTopicArn: 
+    Type: String
+    Description: Arn of SNS topic 
+  loadBalancerName:
+    Type: String
+    Description: Name of load balancer
+  targetGroupName:
+    Type: String
+    Description: Name of load balancer target group
+  albUnhealthyHostAlarmName:
+    Type: String
+    Description: Name of unhealthy host alarm
+  alb5xxErrorsAlarmName:
+    Type: String
+    Description: Name of 5xx errors alarm 
+  alb4xxErrorsAlarmName:
+    Type: String
+    Description: Name of 4xx errors alarm 
+  alb4xxErrorsMetricName:
+    Type: String
+    Description: Name of 4xx errors metric
+  albUnhealthyHostMetricName:
+    Type: String
+    Description: Name of unhealthy host metric
+  alb5xxErrorsMetricName:
+    Type: String
+    Description: Name of 5xx errors metric
+  albMetricUnit:
+    Type: String
+    AllowedValues: [Count,Seconds,Percent,Bytes]
+    Description: Cloudwatch metric unit of ALB
+  albNamespace:
+    Type: String
+    Description: Cloudwatch namespace of ALB 
+  albUnhealthyHostStatistic:
+    Type: String
+    AllowedValues: [Average,Maximum,Minimum,Sum]
+    Description: Statistic for ALB Unhealthy Host 
+  albErrorsStatistic:
+    Type: String
+    AllowedValues: [Average,Maximum,Minimum,Sum]
+    Description: Statistic for 5xx Errors
+  albThresholdValue:
+    Type: String
+    Description: Threshold value to compare with the specified statistic
+  albStatisticPeriod:
+    Type: String
+    Description: Time period over which the ALB statistic applied
+  albEvaluationPeriods: 
+    Type: String
+    Description: Evaluation periods of ALB metrics
+  alb4xxErrorsStatisticPeriod:
+    Type: String
+    Description: Statistic for ALB 4xx Errors
+  alb4xxErrorsEvaluationPeriods:
+    Type: String
+    Description: Evaluation periods of ALB 4xx Errors
+  alb4xxErrorsThresholdValue:
+    Type: String
+    Description: Threshold value to compare with the specified statistic of ALB 4xx Errors
+
+Resources:  
+  albUnhealthyHostAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Ref albUnhealthyHostAlarmName
+      AlarmDescription: !Sub "Trigger alarm when ${project} ${env} Alb unhealthy Hosts are greater than ${albThresholdValue}"
+      MetricName: !Ref albUnhealthyHostMetricName
+      Namespace: !Ref albNamespace 
+      Statistic: !Ref albUnhealthyHostStatistic 
+      Period: !Ref albStatisticPeriod
+      Unit: !Ref albMetricUnit
+      EvaluationPeriods: !Ref albEvaluationPeriods
+      Threshold: !Ref albThresholdValue
+      AlarmActions:
+        - !Ref snsTopicArn
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !Ref loadBalancerName 
+        - Name: TargetGroup
+          Value: !Ref targetGroupName
+      ComparisonOperator: GreaterThanThreshold
+  alb5xxErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Ref alb5xxErrorsAlarmName
+      AlarmDescription: !Sub "Trigger alarm when ${project} ${env} Alb 5xx errors are greater than ${albThresholdValue}"
+      MetricName: !Ref alb5xxErrorsMetricName
+      Namespace: !Ref albNamespace
+      Statistic: !Ref albErrorsStatistic 
+      Period: !Ref albStatisticPeriod
+      Unit: !Ref albMetricUnit
+      EvaluationPeriods: !Ref albEvaluationPeriods
+      Threshold: !Ref albThresholdValue
+      AlarmActions:
+        - !Ref snsTopicArn
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !Ref loadBalancerName 
+        - Name: TargetGroup
+          Value: !Ref targetGroupName
+      ComparisonOperator: GreaterThanThreshold
+  alb4xxErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Ref alb4xxErrorsAlarmName
+      AlarmDescription: !Sub "Trigger alarm when ${project} ${env} Alb 4xx errors are greater than ${albThresholdValue}"
+      MetricName: !Ref alb4xxErrorsMetricName
+      Namespace: !Ref albNamespace
+      Statistic: !Ref albErrorsStatistic 
+      Period: !Ref alb4xxErrorsStatisticPeriod
+      Unit: !Ref albMetricUnit
+      EvaluationPeriods: !Ref alb4xxErrorsEvaluationPeriods
+      Threshold: !Ref alb4xxErrorsThresholdValue
+      AlarmActions:
+        - !Ref snsTopicArn
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !Ref loadBalancerName 
+        - Name: TargetGroup
+          Value: !Ref targetGroupName
+      ComparisonOperator: GreaterThanThreshold
+
+Outputs:
+  albUnhealthyHostAlarm:
+    Value: !Ref albUnhealthyHostAlarm
+    Export:
+      Name: !Sub "${project}-${env}-albUnhealthyHostsAlarmName-${AWS::Region}"
+  alb5xxErrorsAlarm:
+    Value: !Ref alb5xxErrorsAlarm
+    Export:
+      Name: !Sub "${project}-${env}-alb5xxErrorAlarmName-${AWS::Region}"
+  alb4xxErrorsAlarm:
+    Value: !Ref alb4xxErrorsAlarm
+    Export:
+      Name: !Sub "${project}-${env}-alb4xxErrorAlarmName-${AWS::Region}"

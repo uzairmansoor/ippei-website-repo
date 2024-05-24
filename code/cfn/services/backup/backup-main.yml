@@ -1,0 +1,84 @@
+AWSTemplateFormatVersion: 2010-09-09 
+Description: Driver template to create the backup 
+Parameters:
+  project:
+    Type: String
+    Default: cloudweb
+    Description:  Project Name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description:  Environment Name
+  s3ArtifactPath:
+    Type: String
+    Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
+    Description: "Artifact bucket path"
+
+Resources:
+  iamRoles:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/iamRoles/iamRoles.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        cloudWatchAgentServerRoleName: CloudWatchAgentServerRole
+        cloudWatchAgentInstanceProfileName: CloudWatchAgentServerInstanceProfile
+        s3ArtifactsBucketArn: arn:aws:s3:::cloudweb-prod-artifacts-us-east-1-770760105158
+
+  rdsBackup:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/backup/backup-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        newBackupVault: true
+        backupVaultName: rds
+        backupPlanName: rdsbackup
+        backupSelectionName: rds
+        backupPolicy: BackupOnceDaily
+        backupIamRoleArn: !GetAtt iamRoles.Outputs.backupIamRoleArn
+        backupDeleteAfterDays: 7
+        backupTargetRegion: us-west-1
+        backukScheduleExpression: cron(0 15 ? * * *)
+        backupStartWindowMinutes: 60
+        backupCompletionWindowMinutes: 120
+        awsResource: DB
+  
+  ec2Backup:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/backup/backup-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        newBackupVault: true
+        backupVaultName: ec2
+        backupPlanName: ec2backup
+        backupSelectionName: ec2
+        backupPolicy: BackupOnceDaily
+        backupIamRoleArn: !GetAtt iamRoles.Outputs.backupIamRoleArn
+        backupDeleteAfterDays: 7
+        backupTargetRegion: us-west-1
+        backukScheduleExpression: cron(0 15 ? * * *)
+        backupStartWindowMinutes: 60
+        backupCompletionWindowMinutes: 120
+        awsResource: ec2Instance
+
+       
+Outputs:
+  iamRoles:
+    Value: !Ref iamRoles
+    Export:
+      Name: !Sub "${project}-${env}-iamRoles-${AWS::Region}"
+  rdsBackup:
+    Value: !Ref rdsBackup
+    Export:
+      Name: !Sub "${project}-${env}-rdsBackup-${AWS::Region}"
+  ec2Backup:
+    Value: !Ref ec2Backup
+    Export:
+      Name: !Sub "${project}-${env}-ec2Backup-${AWS::Region}"
+ 

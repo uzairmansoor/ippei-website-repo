@@ -1,0 +1,502 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "Cfn template to deploy Waf Web Acl and rules"
+Parameters:
+  project:
+    Type: String
+    Default: cloudweb
+    Description: Project name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description: Environment name
+  wafWebAclName:
+    Type: String
+    Default: ''
+    Description: Web ACL name
+  wafWebAclDescription:
+    Type: String
+    Default: Web ACL
+    Description: WAF Web ACL description
+  wafWebAclScope:
+    Type: String
+    Default: REGIONAL
+    AllowedValues: [CLOUDFRONT, REGIONAL]
+    Description: Select CLOUDFRONT for an Amazon CloudFront distribution, REGIONAL for a regional application
+  wafEnableSqlInjectionRule:
+    Type: String
+    Default: true
+    AllowedValues: [true, false]
+    Description: Select true to enable SQL injection protection, false otherwise
+  wafEnableCrossSiteScriptingRule:
+    Type: String
+    Default: true
+    AllowedValues: [true, false]
+    Description: Select true to enable cross site scripting protection, false otherwise
+  wafEnableAmazonIpDdosProtectionRule:
+    Type: String
+    Default: true
+    AllowedValues: [true, false]
+    Description: Select true to enable DDOS protection, false otherwise
+  wafEnableCoreRuleSet:
+    Type: String
+    Default: true
+    AllowedValues: [true, false]
+    Description: Select true to safeguard web applications against a broad spectrum of vulnerabilities, including those outlined in OWASP publications, false otherwise
+  wafEnableKnownBadInputsRuleSet:
+    Type: String
+    Default: true
+    AllowedValues: [true, false]
+    Description: Select true to prevent access to request patterns deemed invalid or linked to exploiting vulnerabilities, false otherwise
+  wafEnableLinuxRuleSet:
+    Type: String
+    Default: true
+    AllowedValues: [true, false]
+    Description: Select true to block request patterns associated with exploitation of vulnerabilities specific to Linux including LFI attacks, false otherwise
+  wafEnablePHPRuleSet:
+    Type: String
+    Default: true
+    AllowedValues: [true, false]
+    Description: Select true to block request patterns associated with exploiting vulnerabilities specific to the use of the PHP including injection of unsafe 
+                 PHP functions, false otherwise
+  wafEnableSQLiRuleSet:
+    Type: String
+    Default: true
+    AllowedValues: [true, false]
+    Description: Select true to block request patterns associated with exploitation of SQL databases like SQL injection attacks, false otherwise
+  wafEnableWordPressRuleSet:
+    Type: String
+    Default: true
+    AllowedValues: [true, false]
+    Description: Select true to block request patterns associated with the exploitation of vulnerabilities specific to WordPress sites, false otherwise
+  wafEnableAdminProtectionRuleSet:
+    Type: String
+    Default: true
+    AllowedValues: [true, false]
+    Description: Select true to restrict external access to administrative pages, reducing the risk of unauthorized access to third-party software or sensitive
+                 sections within your application, false otherwise
+  applicationLoadBalancerArn:
+    Type: String
+    Description: ARN of an Application Load Balancer
+
+Conditions:
+  isSqlInjectionProtectionRule: !Equals [!Ref wafEnableSqlInjectionRule, true]
+  isCrossSiteScriptingProtectionRule: !Equals [!Ref wafEnableCrossSiteScriptingRule, true]
+  isAmazonIpDdosProtectionRule: !Equals [!Ref wafEnableAmazonIpDdosProtectionRule, true]
+  isCoreRuleSet: !Equals [!Ref wafEnableCoreRuleSet, true]
+  isKnownBadInputsRuleSet: !Equals [!Ref wafEnableKnownBadInputsRuleSet, true]
+  isLinuxRuleSet: !Equals [!Ref wafEnableLinuxRuleSet, true]
+  isPHPRuleSet: !Equals [!Ref wafEnablePHPRuleSet, true]
+  isSQLiRuleSet: !Equals [!Ref wafEnableSQLiRuleSet, true]
+  isWordPressRuleSet: !Equals [!Ref wafEnableWordPressRuleSet, true]
+  isAdminProtectionRuleSet: !Equals [!Ref wafEnableAdminProtectionRuleSet, true]
+
+Resources:
+  wafWebACLAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    DependsOn:
+      - wafWebACL
+    Properties:
+      ResourceArn: !Ref applicationLoadBalancerArn
+      WebACLArn: !GetAtt wafWebACL.Arn
+
+  wafWebACL:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: !Ref wafWebAclName
+      Description: !Ref wafWebAclDescription
+      Scope: !Ref wafWebAclScope
+      VisibilityConfig: 
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub "${wafWebAclName}-Metrics"
+      DefaultAction: 
+        Allow: {}
+      Rules:
+        - !If
+          - isSqlInjectionProtectionRule
+          - Name: !Sub "${wafWebAclName}-SQLInjectionRule"
+            Priority: 0
+            Action:
+              Block: {}
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: !Sub "${wafWebAclName}-SQLInjectionRuleMetrics"
+            Statement:
+              OrStatement:
+                Statements:
+                  - SqliMatchStatement:
+                      FieldToMatch:
+                        QueryString: {}
+                      TextTransformations:
+                        - Priority: 1
+                          Type: URL_DECODE
+                        - Priority: 2
+                          Type: HTML_ENTITY_DECODE
+                  - SqliMatchStatement:
+                      FieldToMatch:
+                        Body: {}
+                      TextTransformations:
+                        - Priority: 1
+                          Type: URL_DECODE
+                        - Priority: 2
+                          Type: HTML_ENTITY_DECODE
+                  - SqliMatchStatement:
+                      FieldToMatch:
+                        UriPath: {}
+                      TextTransformations:
+                        - Priority: 1
+                          Type: URL_DECODE
+                        - Priority: 2
+                          Type: HTML_ENTITY_DECODE
+                  - SqliMatchStatement:
+                      FieldToMatch:
+                        SingleHeader: {Name: "Authorization"}
+                      TextTransformations:
+                        - Priority: 1
+                          Type: URL_DECODE
+                        - Priority: 2
+                          Type: HTML_ENTITY_DECODE
+                  - SqliMatchStatement:
+                      FieldToMatch:
+                        SingleHeader: {Name: "Cookie"}
+                      TextTransformations:
+                        - Priority: 1
+                          Type: URL_DECODE
+                        - Priority: 2
+                          Type: HTML_ENTITY_DECODE
+          - !Ref 'AWS::NoValue'
+        - !If
+          - isCrossSiteScriptingProtectionRule
+          - Name: !Sub "${wafWebAclName}-XSSRule"
+            Priority: 1
+            Action:
+              Block: {}
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: !Sub "${wafWebAclName}-XSSRuleMetrics"
+            Statement:
+              OrStatement:
+                Statements:
+                  - XssMatchStatement:
+                      FieldToMatch:
+                        QueryString: {}
+                      TextTransformations:
+                        - Priority: 1
+                          Type: URL_DECODE
+                        - Priority: 2
+                          Type: HTML_ENTITY_DECODE
+                  - XssMatchStatement:
+                      FieldToMatch:
+                        Body: {}
+                      TextTransformations:
+                        - Priority: 1
+                          Type: URL_DECODE
+                        - Priority: 2
+                          Type: HTML_ENTITY_DECODE
+                  - XssMatchStatement:
+                      FieldToMatch:
+                        UriPath: {}
+                      TextTransformations:
+                        - Priority: 1
+                          Type: URL_DECODE
+                        - Priority: 2
+                          Type: HTML_ENTITY_DECODE
+                  - XssMatchStatement:
+                      FieldToMatch:
+                        SingleHeader: {Name: "Cookie"}
+                      TextTransformations:
+                        - Priority: 1
+                          Type: URL_DECODE
+                        - Priority: 2
+                          Type: HTML_ENTITY_DECODE
+          - !Ref 'AWS::NoValue'
+        - !If
+          - isAmazonIpDdosProtectionRule
+          - Name: !Sub "${wafWebAclName}-AmazonIpDdosProtectionRule"
+            Priority: 2
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: !Sub "${wafWebAclName}-AmazonIpDdosProtectionRuleMetrics"
+            OverrideAction:
+              None: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesAmazonIpReputationList
+                RuleActionOverrides:
+                - Name: AWSManagedReconnaissanceList
+                  ActionToUse:
+                    Block: {}
+                - Name: AWSManagedIPDDoSList
+                  ActionToUse:
+                    Block: {}
+                - Name: AWSManagedIPReputationList
+                  ActionToUse:
+                    Block: {}
+          - !Ref 'AWS::NoValue'
+        - !If
+          - isCoreRuleSet
+          - Name: !Sub "${wafWebAclName}-AWSManagedRulesCommonRuleSet"
+            Priority: 3
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: !Sub "${wafWebAclName}-AWSManagedRulesCommonRuleSet"
+            OverrideAction:
+              None: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesCommonRuleSet
+                RuleActionOverrides:
+                - Name: NoUserAgent_HEADER
+                  ActionToUse:
+                    Block: {}
+                - Name: UserAgent_BadBots_HEADER
+                  ActionToUse:
+                    Block: {}
+                - Name: SizeRestrictions_QUERYSTRING
+                  ActionToUse:
+                    Block: {}
+                - Name: SizeRestrictions_Cookie_HEADER
+                  ActionToUse:
+                    Block: {}
+                - Name: SizeRestrictions_BODY
+                  ActionToUse:
+                    Block: {}
+                - Name: SizeRestrictions_URIPATH
+                  ActionToUse:
+                    Block: {}
+                - Name: EC2MetaDataSSRF_BODY
+                  ActionToUse:
+                    Block: {}
+                - Name: EC2MetaDataSSRF_COOKIE
+                  ActionToUse:
+                    Block: {}
+                - Name: EC2MetaDataSSRF_URIPATH
+                  ActionToUse:
+                    Block: {}
+                - Name: EC2MetaDataSSRF_QUERYARGUMENTS
+                  ActionToUse:
+                    Block: {}
+                - Name: GenericLFI_QUERYARGUMENTS
+                  ActionToUse:
+                    Block: {}
+                - Name: GenericLFI_URIPATH
+                  ActionToUse:
+                    Block: {}
+                - Name: GenericLFI_BODY
+                  ActionToUse:
+                    Block: {}
+                - Name: RestrictedExtensions_URIPATH
+                  ActionToUse:
+                    Block: {}
+                - Name: RestrictedExtensions_QUERYARGUMENTS
+                  ActionToUse:
+                    Block: {}
+                - Name: GenericRFI_QUERYARGUMENTS
+                  ActionToUse:
+                    Block: {}
+                - Name: GenericRFI_BODY
+                  ActionToUse:
+                    Block: {}
+                - Name: GenericRFI_URIPATH
+                  ActionToUse:
+                    Block: {}
+                - Name: CrossSiteScripting_COOKIE
+                  ActionToUse:
+                    Block: {}
+                - Name: CrossSiteScripting_QUERYARGUMENTS
+                  ActionToUse:
+                    Block: {}
+                - Name: CrossSiteScripting_BODY
+                  ActionToUse:
+                    Block: {}
+                - Name: CrossSiteScripting_URIPATH
+                  ActionToUse:
+                    Block: {}
+          - !Ref 'AWS::NoValue'
+        - !If
+          - isKnownBadInputsRuleSet
+          - Name: !Sub "${wafWebAclName}-AWSManagedRulesKnownBadInputsRuleSet"
+            Priority: 4
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: !Sub "${wafWebAclName}-AWSManagedRulesKnownBadInputsRuleSet"
+            OverrideAction:
+              None: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesKnownBadInputsRuleSet
+                RuleActionOverrides:
+                - Name: ExploitablePaths_URIPATH_RC_COUNT
+                  ActionToUse:
+                    Block: {}
+                - Name: JavaDeserializationRCE_BODY
+                  ActionToUse:
+                    Block: {}
+                - Name: JavaDeserializationRCE_URIPATH
+                  ActionToUse:
+                    Block: {}
+                - Name: JavaDeserializationRCE_QUERYSTRING
+                  ActionToUse:
+                    Block: {}
+                - Name: JavaDeserializationRCE_HEADER
+                  ActionToUse:
+                    Block: {}
+                - Name: Host_localhost_HEADER
+                  ActionToUse:
+                    Block: {}
+                - Name: PROPFIND_METHOD
+                  ActionToUse:
+                    Block: {}
+                - Name: ExploitablePaths_URIPATH
+                  ActionToUse:
+                    Block: {}
+                - Name: Log4JRCE_QUERYSTRING
+                  ActionToUse:
+                    Block: {}
+                - Name: Log4JRCE_BODY
+                  ActionToUse:
+                    Block: {}
+                - Name: Log4JRCE_URIPATH
+                  ActionToUse:
+                    Block: {}
+                - Name: Log4JRCE_HEADER
+                  ActionToUse:
+                    Block: {}
+          - !Ref 'AWS::NoValue'
+        - !If
+          - isLinuxRuleSet
+          - Name: !Sub "${wafWebAclName}-AWSManagedRulesLinuxRuleSet"
+            Priority: 5
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: !Sub "${wafWebAclName}-AWSManagedRulesLinuxRuleSet"
+            OverrideAction:
+              None: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesLinuxRuleSet
+                RuleActionOverrides:
+                - Name: LFI_URIPATH
+                  ActionToUse:
+                    Block: {}
+                - Name: LFI_QUERYSTRING
+                  ActionToUse:
+                    Block: {}
+                - Name: LFI_HEADER
+                  ActionToUse:
+                    Block: {}
+          - !Ref 'AWS::NoValue'
+        - !If
+          - isPHPRuleSet
+          - Name: !Sub "${wafWebAclName}-AWSManagedRulesPHPRuleSet"
+            Priority: 6
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: !Sub "${wafWebAclName}-AWSManagedRulesPHPRuleSet"
+            OverrideAction:
+              None: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesPHPRuleSet
+                RuleActionOverrides:
+                - Name: PHPHighRiskMethodsVariables_HEADER
+                  ActionToUse:
+                    Block: {}
+                - Name: PHPHighRiskMethodsVariables_QUERYSTRING
+                  ActionToUse:
+                    Block: {}
+                - Name: PHPHighRiskMethodsVariables_BODY
+                  ActionToUse:
+                    Block: {}
+          - !Ref 'AWS::NoValue'
+        - !If
+          - isSQLiRuleSet
+          - Name: !Sub "${wafWebAclName}-AWSManagedRulesSQLiRuleSet"
+            Priority: 7
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: !Sub "${wafWebAclName}-AWSManagedRulesSQLiRuleSet"
+            OverrideAction:
+              None: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesSQLiRuleSet
+                RuleActionOverrides:
+                - Name: SQLiExtendedPatterns_QUERYARGUMENTS
+                  ActionToUse:
+                    Block: {}
+                - Name: SQLi_QUERYARGUMENTS
+                  ActionToUse:
+                    Block: {}
+                - Name: SQLi_BODY
+                  ActionToUse:
+                    Block: {}
+                - Name: SQLi_COOKIE
+                  ActionToUse:
+                    Block: {}
+                - Name: SQLi_URIPATH
+                  ActionToUse:
+                    Block: {}
+          - !Ref 'AWS::NoValue'
+        - !If
+          - isWordPressRuleSet
+          - Name: !Sub "${wafWebAclName}-AWSManagedRulesWordPressRuleSet"
+            Priority: 8
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: !Sub "${wafWebAclName}-AWSManagedRulesWordPressRuleSet"
+            OverrideAction:
+              None: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesWordPressRuleSet
+                RuleActionOverrides:
+                - Name: WordPressExploitableCommands_QUERYSTRING
+                  ActionToUse:
+                    Block: {}
+                - Name: WordPressExploitablePaths_URIPATH
+                  ActionToUse:
+                    Block: {}
+          - !Ref 'AWS::NoValue'
+        - !If
+          - isAdminProtectionRuleSet
+          - Name: !Sub "${wafWebAclName}-AWSManagedRulesAdminProtectionRuleSet"
+            Priority: 9
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: !Sub "${wafWebAclName}-AWSManagedRulesAdminProtectionRuleSet"
+            OverrideAction:
+              None: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesAdminProtectionRuleSet
+                RuleActionOverrides:
+                - Name: AdminProtection_URIPATH
+                  ActionToUse:
+                    Block: {}
+          - !Ref 'AWS::NoValue'
+
+Outputs:
+  wafWebAcl:
+    Value: !GetAtt wafWebACL.Arn
+    Export:
+        Name: !Sub "${project}-${env}-wafWebAclArn-${AWS::Region}"

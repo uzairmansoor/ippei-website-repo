@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Driver template to create sns topic and subscription
+Parameters:
+  project:
+    Type: String
+    Description:  Project Name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description:  Environment Name
+  snsTopicName:
+    Type: String
+    Description: Name for Amazon SNS topic 
+  snsDisplayName:
+    Type: String
+    Description: Display name for Amazon SNS topic 
+
+Resources:  
+  snsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Ref snsTopicName
+      DisplayName: !Ref snsDisplayName
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-snsTopic-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+
+Outputs:
+  snsTopicArn:
+    Value: !Ref snsTopic
+    Export:
+      Name: !Sub "${snsTopicName}-Arn"
+  snsTopicName:
+    Value: !Ref snsTopic
+    Export:
+      Name: !Sub "${snsTopicName}"

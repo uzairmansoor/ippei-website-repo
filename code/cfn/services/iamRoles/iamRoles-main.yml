@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: 2010-09-09 
+Description: 'Driver template to deploy IAM roles'
+Parameters:
+  project:
+    Type: String
+    Default: cloudweb
+    Description:  Project Name
+  env:
+    Type: String
+    Default: prod
+    AllowedValues: [prod, dev, qa]
+    Description:  Environment Name
+  s3ArtifactPath:
+    Type: String
+    Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
+    Description: "Artifact bucket path"
+
+Resources:
+  iamRoles:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - s3ArtifactsBucket
+      - ssmParameterStore
+      - freeMemSsmDocument
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/iamRoles/iamRoles-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        s3ArtifactsBucketArn: !GetAtt s3ArtifactsBucket.Outputs.s3BucketArn
+        instanceIdsParamStoreName: !GetAtt ssmParameterStore.Outputs.instanceIdsParamStoreName
+        dbName: !Sub "${project}-${env}-db-${AWS::Region}"
+        asgName: !Sub "${project}-${env}-AutoScalingGroup-${AWS::Region}"
+        freeMemSsmDocumentName: !GetAtt freeMemSsmDocument.Outputs.freeMemSsmDocumentName
+
+Outputs:
+  iamRoles:
+    Value: !Ref iamRoles
+    Export:
+      Name: !Sub "${project}-${env}-iamRolesStack-${AWS::Region}"
+ 

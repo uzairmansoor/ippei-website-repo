@@ -1,0 +1,300 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template to create auto scaling group cloudwatch alarms
+Parameters:
+  project:
+    Type: String
+    Description:  Project name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description:  Environment name
+  snsTopicArn: 
+    Type: String
+    Description: Arn of SNS topic 
+  asgName:
+    Type: String
+    Description: Name of autoscaling group
+  cpuMetricName:
+    Type: String
+    Description: Name of cpu utilization metric
+  statusCheckMetricName:
+    Type: String
+    Description: Name of status check metric
+  lowCpuAlarmName:
+    Type: String
+    Description: Name of low cpu alarm
+  highCpuAlarmName:
+    Type: String
+    Description: Name of high cpu alarm
+  mediumCpuAlarmName:
+    Type: String
+    Description: Name of medium cpu alarm
+  systemStatusCheckMetricName:
+    Type: String
+    Description: Name of system status check metric
+  asgNetworkOutMetricName:
+    Type: String
+    Description: Name of auto scaling group network out metric
+  asgNetworkInMetricName:
+    Type: String
+    Description: Name of auto scaling group network in metric
+  statusCheckEc2AlarmName:
+    Type: String
+    Description: Name of status check EC2 alarm
+  systemStatusCheckEc2AlarmName:
+    Type: String
+    Description: Name of system status check EC2 alarm
+  asgNetworkInTrafficAlarmName:
+    Type: String
+    Description: Name of auto scaling group network in traffic alarm
+  asgNetworkOutTrafficAlarmName:
+    Type: String
+    Description: Name of auto scaling group network out traffic alarm
+  asgCpuStatistic:
+    Type: String
+    AllowedValues: [Average,Maximum,Minimum,Sum]
+    Description: Statistic for auto scaling group cpu 
+  lowCpuThresholdValue:
+    Type: Number
+    Description: Threshold value to compare for low cpu utilization
+  mediumCpuThresholdValue:
+    Type: Number
+    Description: Threshold value to compare for medium cpu utilization
+  highCpuThresholdValue:
+    Type: Number
+    Description: Threshold value to compare for high cpu utilization
+  scaleInCpuThresholdValue:
+    Type: Number
+    Description: Threshold value to compare for scale in cpu utilization
+  asgNamespace:
+    Type: String
+    Description: Cloudwatch namespace of auto scaling group 
+  cpuMetricUnit:
+    Type: String
+    AllowedValues: [Count,Seconds,Percent,Bytes]
+    Description: Unit of the metric for cpu
+  statusCheckStatistic:
+    Type: String
+    AllowedValues: [Average,Maximum,Minimum,Sum]
+    Description: Statistic for status check EC2 
+  statusCheckThresholdValue:
+    Type: Number
+    Description: Threshold value to compare for status check
+  statusCheckMetricUnit:
+    Type: String
+    AllowedValues: [Count,Seconds,Percent,Bytes]
+    Description: Unit of the metric for EC2 status check
+  asgNetworkStatistic:
+    Type: String
+    AllowedValues: [Average,Maximum,Minimum,Sum]
+    Description: Statistic for status network traffic
+  asgNetworkThresholdValue:
+    Type: Number
+    Description: Threshold value to compare for network traffic
+  asgNetworkMetricUnit:
+    Type: String
+    AllowedValues: [Count,Seconds,Percent,Bytes]
+    Description: Unit of the metric for network traffic
+  asgStatisticPeriod:
+    Type: Number  
+    Description: Time period over which the auto scaling group statistic applied
+  asgEvaluationPeriod:
+    Type: Number
+    Description: Evaluation periods of auto scaling group metrics
+  asgNetworkInStatisticPeriod:
+    Type: Number
+    Description: Time period over which the auto scaling group statistic applied
+  asgCpuScaleInAlarmName:
+    Type: String
+    Description: Name of the ASG cpu scale in alarm
+  snsTopicForTriggerScaleInAsgLambdaFuncArn:
+    Type: String
+    Description: Arn of SNS topic that will trigger scale in autoscaling group lambda function
+  cpuScaleInStepScalingPolicyArn:
+    Type: String
+    Description: Arn of cpu scale in step scaling policy
+  cpuScaleOutStepScalingPolicyArn:
+    Type: String
+    Description: Arn of cpu utilization scale out step scaling policy
+
+Resources:  
+  asgLowCpuAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Ref lowCpuAlarmName
+      AlarmDescription: !Sub "Trigger alarm when ${project} ${env} auto scaling group cpu utilization is greater than ${lowCpuThresholdValue}"
+      MetricName: !Ref cpuMetricName
+      Namespace: !Ref asgNamespace
+      Statistic: !Ref asgCpuStatistic 
+      Unit: !Ref cpuMetricUnit 
+      Period: !Ref asgStatisticPeriod
+      EvaluationPeriods: !Ref asgEvaluationPeriod
+      Threshold: !Ref lowCpuThresholdValue 
+      AlarmActions:
+        - !Ref snsTopicArn
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref asgName
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+  asgMediumCpuAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Ref mediumCpuAlarmName
+      AlarmDescription: !Sub "Trigger alarm when ${project} ${env} auto scaling group cpu utilization is greater than ${mediumCpuThresholdValue}"
+      MetricName: !Ref cpuMetricName
+      Namespace: !Ref asgNamespace
+      Statistic: !Ref asgCpuStatistic
+      Unit: !Ref cpuMetricUnit 
+      Period: !Ref asgStatisticPeriod
+      EvaluationPeriods: !Ref asgEvaluationPeriod
+      Threshold: !Ref mediumCpuThresholdValue
+      AlarmActions:
+        - !Ref cpuScaleOutStepScalingPolicyArn
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref asgName
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+  asgHighCpuAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Ref highCpuAlarmName
+      AlarmDescription: !Sub "Trigger alarm when ${project} ${env} auto scaling group cpu utilization is greater than ${highCpuThresholdValue}"
+      MetricName: !Ref cpuMetricName
+      Namespace: !Ref asgNamespace
+      Statistic: !Ref asgCpuStatistic
+      Unit: !Ref cpuMetricUnit
+      Period: !Ref asgStatisticPeriod
+      EvaluationPeriods: !Ref asgEvaluationPeriod
+      Threshold: !Ref highCpuThresholdValue 
+      AlarmActions:
+        - !Ref snsTopicArn
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref asgName
+      ComparisonOperator: GreaterThanThreshold
+  asgCpuScaleInAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${project}-${env}-${asgCpuScaleInAlarmName}-${AWS::Region}"
+      AlarmDescription: Notification for EC2 CPU Utilization to Trigger Scale-In
+      MetricName: !Ref cpuMetricName
+      Namespace: AWS/EC2
+      Statistic: Average
+      Unit: Percent
+      Period: !Ref asgStatisticPeriod
+      EvaluationPeriods: !Ref asgEvaluationPeriod
+      Threshold: !Ref scaleInCpuThresholdValue
+      AlarmActions:
+        - !Ref cpuScaleInStepScalingPolicyArn
+        - !Ref snsTopicForTriggerScaleInAsgLambdaFuncArn
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref asgName
+      ComparisonOperator: LessThanOrEqualToThreshold
+  statusCheckEc2Alarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Ref statusCheckEc2AlarmName
+      AlarmDescription: !Sub "Trigger alarm when ${project} ${env} auto scaling group status check is greater than ${statusCheckThresholdValue}"
+      MetricName: !Ref statusCheckMetricName
+      Namespace: !Ref asgNamespace
+      Statistic: !Ref statusCheckStatistic 
+      Unit: !Ref statusCheckMetricUnit 
+      Period: !Ref asgStatisticPeriod
+      EvaluationPeriods: !Ref asgEvaluationPeriod
+      Threshold: !Ref statusCheckThresholdValue
+      AlarmActions:
+        - !Ref snsTopicArn
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref asgName
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+  systemStatusCheckEc2Alarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Ref systemStatusCheckEc2AlarmName
+      AlarmDescription: !Sub "Trigger alarm when ${project} ${env} auto scaling group system status check is greater than ${statusCheckThresholdValue}"
+      MetricName: !Ref systemStatusCheckMetricName
+      Namespace: !Ref asgNamespace
+      Statistic: !Ref statusCheckStatistic
+      Unit: !Ref statusCheckMetricUnit 
+      Period: !Ref asgStatisticPeriod
+      EvaluationPeriods: !Ref asgEvaluationPeriod
+      Threshold: !Ref statusCheckThresholdValue
+      AlarmActions:
+        - !Ref snsTopicArn
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref asgName
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+  asgNetworkInTrafficAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Ref asgNetworkInTrafficAlarmName
+      AlarmDescription: !Sub "Trigger alarm when ${project} ${env} auto scaling group network in traffic is greater than ${asgNetworkThresholdValue}"
+      MetricName: !Ref asgNetworkInMetricName
+      Namespace: !Ref asgNamespace
+      Statistic: !Ref asgNetworkStatistic 
+      Unit: !Ref asgNetworkMetricUnit 
+      Period: !Ref asgNetworkInStatisticPeriod
+      EvaluationPeriods: !Ref asgEvaluationPeriod
+      Threshold: !Ref asgNetworkThresholdValue  
+      AlarmActions:
+        - !Ref snsTopicArn
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref asgName
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+  asgNetworkOutTrafficAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Ref asgNetworkOutTrafficAlarmName
+      AlarmDescription: !Sub "Trigger alarm when ${project} ${env} auto scaling group network out traffic is greater than ${asgNetworkThresholdValue}"
+      MetricName: !Ref asgNetworkOutMetricName
+      Namespace: !Ref asgNamespace
+      Statistic: !Ref asgNetworkStatistic
+      Unit: !Ref asgNetworkMetricUnit
+      Period: !Ref asgStatisticPeriod
+      EvaluationPeriods: !Ref asgEvaluationPeriod
+      Threshold: !Ref asgNetworkThresholdValue  
+      AlarmActions:
+        - !Ref snsTopicArn
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref asgName
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+    
+Outputs:
+  asgLowCpuAlarm:
+    Value: !Ref asgLowCpuAlarm
+    Export:
+      Name: !Sub "${project}-${env}-asgLowCpuAlarmName-${AWS::Region}"
+  asgHighCpuAlarm:
+    Value: !Ref asgHighCpuAlarm
+    Export:
+      Name: !Sub "${project}-${env}-asgHighCpuAlarmName-${AWS::Region}"
+  asgMediumCpuAlarm:
+    Value: !Ref asgMediumCpuAlarm
+    Export:
+      Name: !Sub "${project}-${env}-asgMediumCpuAlarmName-${AWS::Region}"
+  asgCpuScaleInAlarm:
+    Value: !Ref asgCpuScaleInAlarm
+    Export:
+      Name: !Sub "${project}-${env}-asgCpuScaleInAlarmName-${AWS::Region}"
+  statusCheckEc2Alarm:
+    Value: !Ref statusCheckEc2Alarm
+    Export:
+      Name: !Sub "${project}-${env}-asgStatusCheckEc2AlarmName-${AWS::Region}"
+  systemStatusCheckEc2Alarm:
+    Value: !Ref systemStatusCheckEc2Alarm
+    Export:
+      Name: !Sub "${project}-${env}-asgSystemStatusCheckEc2AlarmName-${AWS::Region}"
+  asgNetworkInTrafficAlarm:
+    Value: !Ref asgNetworkInTrafficAlarm
+    Export:
+      Name: !Sub "${project}-${env}-asgNetworkInTrafficAlarmName-${AWS::Region}"
+  asgNetworkOutTrafficAlarm:
+    Value: !Ref asgNetworkOutTrafficAlarm
+    Export:
+      Name: !Sub "${project}-${env}-asgNetworkOutTrafficAlarmName-${AWS::Region}"

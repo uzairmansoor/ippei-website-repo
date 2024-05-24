@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Driver template to deploy the SSM document
+Parameters:
+  project:
+    Type: String
+    Default: cloudweb
+    Description:  Project Name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description:  Environment Name
+  s3ArtifactPath:
+    Type: String
+    Default: "https://cloudweb-wordpress-stag-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
+    Description: "Artifact Bucket path"
+
+Resources:
+  freeMemSsmDocument:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/ssm/ssmDocument/ssmDocument-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        ssmDocumentName: freeMem
+        ssmDocumentFormat: YAML
+        ssmDocumentType: Command
+        ssmDocumentTargetType: /AWS::EC2::Instance
+        ssmSchemaVersion: "2.2"
+        ssmDocumentDescription: "Execute Custom CloudWatch Metric Script"
+
+Outputs:
+  freeMemSsmDocument:
+    Value: !Ref freeMemSsmDocument
+    Export:
+      Name: !Sub "${project}-${env}-freeMemSsmDocument-${AWS::Region}"

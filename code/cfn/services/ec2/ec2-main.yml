@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: 2010-09-09 
+Description: Driver template to deploy ec2
+Parameters:
+  project:
+    Type: String
+    Default: cloudweb
+    Description:  Project Name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description:  Environment Name
+  s3ArtifactPath:
+    Type: String
+    Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
+    Description: "Artifact bucket path"
+Resources:
+  jumpServer:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/ec2/ec2-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        serverName: jumpServer 
+        keyPairName: cloudweb-stag-us-east-1-770760105158
+        ec2SShSecurityGroup: !GetAtt securityGroup.Outputs.sgBastionHost
+        ec2SubnetId: !GetAtt vpc.Outputs.publicSubnet1
+        imageId: ami-053b0d53c279acc90
+        instanceType: t2.small
+        ebsVolumeSize: 20
+        ebsVolumeType: gp3
+        ebsMappingDevineName: /dev/xvda
+      
+Outputs:
+  jumpServer:
+    Value: !Ref jumpServer
+    Export:
+      Name: !Sub "${project}-${env}-jumpServer-${AWS::Region}"
+

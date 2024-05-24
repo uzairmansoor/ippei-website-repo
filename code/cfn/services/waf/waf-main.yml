@@ -1,0 +1,47 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Cfn driver template to deploy WAF
+Parameters:
+  project:
+    Type: String
+    Default: cloudweb
+    Description: Project name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description: Environment name
+  s3ArtifactPath:
+    Type: String
+    Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
+    Description: Artifact bucket path
+
+Resources:
+  wafWebAcl:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - cloudWebApplicationLoadBalancer
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/waf/waf-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        wafWebAclName: !Sub "${project}-${env}-wafWebAcl-${AWS::Region}"
+        wafWebAclDescription: "Web ACL for Application Load Balancer"
+        wafWebAclScope: "REGIONAL"
+        wafEnableSqlInjectionRule: true
+        wafEnableCrossSiteScriptingRule: true
+        wafEnableAmazonIpDdosProtectionRule: true
+        wafEnableCoreRuleSet: true
+        wafEnableKnownBadInputsRuleSet: true
+        wafEnableLinuxRuleSet: true
+        wafEnablePHPRuleSet: true
+        wafEnableSQLiRuleSet: true
+        wafEnableWordPressRuleSet: true 
+        wafEnableAdminProtectionRuleSet: true
+        applicationLoadBalancerArn: !GetAtt cloudWebApplicationLoadBalancer.Outputs.loadBalancerArn
+
+Outputs:
+  wafWebAcl:
+    Value: !Ref wafWebAcl
+    Export: 
+      Name: !Sub "${project}-${env}-wafStack-${AWS::Region}"

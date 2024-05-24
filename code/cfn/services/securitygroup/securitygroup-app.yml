@@ -1,0 +1,215 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Template to create the Security Groups
+Parameters:
+  project:
+    Type: String
+    Description:  Project Name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description:  Environment Name
+  vpcId:
+    Type: String
+    Description: ID of the VPC for the security group
+  sgInternetTrafficIngressCidr:
+    Type: String
+    Description: IPv4 CIDR to allow all incoming internet traffic
+  sgInternetTrafficEgressCidr:
+    Type: String
+    Description: IPv4 CIDR to allow all outgoing internet traffic
+  sgSshPort:
+    Type: String
+    Default: 22
+    Description: SSH connection port
+  sgHttpsPort:
+    Type: String
+    Default: 443
+    Description: HTTPS connection port
+  sgHttpPort:
+    Type: String
+    Default: 80
+    Description: HTTP connection port
+  sgRdsPort:
+    Type: String
+    Default: 3306
+    Description: RDS connection port
+  sgAllowAllEgressProtocol:
+    Type: String
+    Default: -1
+    Description: Allow outbound traffic for all protocols
+  netsolCidrIp:
+    Type: String
+    Description: CIDR IP of netsol domain
+
+Resources:
+  sgBastionHost:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref vpcId
+      GroupDescription: Security group to allow traffic on TCP port 22
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-sgBastionHost-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env 
+  sgBastionHostSShIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref sgBastionHost
+      Description: Allow SSh traffic
+      IpProtocol: tcp
+      FromPort: !Ref sgSshPort
+      ToPort: !Ref sgSshPort
+      CidrIp: !Ref netsolCidrIp
+  sgBastionHostEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref sgBastionHost
+      Description: Allow all traffic
+      IpProtocol: !Ref sgAllowAllEgressProtocol
+      CidrIp: !Ref sgInternetTrafficEgressCidr
+
+  sgPublicAlb:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group to allow traffic on TCP port 443 and 80
+      VpcId: !Ref vpcId
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-sgPublicAlb-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+  sgPublicAlbHttpsIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref sgPublicAlb
+      Description: Allow https traffic
+      IpProtocol: tcp
+      FromPort: !Ref sgHttpsPort
+      ToPort: !Ref sgHttpsPort
+      CidrIp: !Ref sgInternetTrafficIngressCidr
+  sgPublicAlbHttpIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref sgPublicAlb
+      Description: Allow http traffic
+      IpProtocol: tcp
+      FromPort: !Ref sgHttpPort
+      ToPort: !Ref sgHttpPort
+      CidrIp: !Ref sgInternetTrafficIngressCidr
+  sgPublicAlbEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref sgPublicAlb
+      Description: Allow all traffic
+      IpProtocol: !Ref sgAllowAllEgressProtocol
+      CidrIp: !Ref sgInternetTrafficEgressCidr 
+  
+  sgEc2Web:
+    Type: AWS::EC2::SecurityGroup
+    DependsOn:
+      - sgPublicAlb
+    Properties:
+      VpcId: !Ref vpcId
+      GroupDescription: Security group to allow traffic on TCP port 80, 443
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-sgEc2Web-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+  sgEc2HttpsIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref sgEc2Web
+      Description: Allow https traffic
+      IpProtocol: tcp
+      FromPort: !Ref sgHttpsPort
+      ToPort: !Ref sgHttpsPort
+      SourceSecurityGroupId: !Ref sgPublicAlb     
+  sgEc2HttpIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref sgEc2Web
+      Description: Allow http traffic
+      IpProtocol: tcp
+      FromPort: !Ref sgHttpPort
+      ToPort: !Ref sgHttpPort
+      SourceSecurityGroupId: !Ref sgPublicAlb
+  sgEc2SshIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref sgEc2Web
+      Description: Allow ssh traffic from bastion instance
+      IpProtocol: tcp
+      FromPort: !Ref sgSshPort
+      ToPort: !Ref sgSshPort
+      SourceSecurityGroupId: !Ref sgBastionHost
+  sgEc2DbIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref sgEc2Web
+      Description: Allow db traffic
+      IpProtocol: tcp
+      FromPort: !Ref sgRdsPort
+      ToPort: !Ref sgRdsPort
+      SourceSecurityGroupId: !Ref sgRds
+  sgEc2WebEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref sgEc2Web
+      Description: Allow all traffic
+      IpProtocol: !Ref sgAllowAllEgressProtocol
+      CidrIp: !Ref sgInternetTrafficEgressCidr 
+  sgRds:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref vpcId
+      GroupDescription: Security group to allow traffic on TCP port 3306
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-sgRds-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+  sgRdsDbIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref sgRds
+      Description: Allow webserver traffic on port 3306
+      IpProtocol: tcp
+      FromPort: !Ref sgRdsPort
+      ToPort: !Ref sgRdsPort
+      SourceSecurityGroupId: !Ref sgEc2Web
+  sgRdsDbEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref sgRds
+      Description: Allow all traffic 
+      IpProtocol: !Ref sgAllowAllEgressProtocol
+      CidrIp: !Ref sgInternetTrafficEgressCidr
+  
+Outputs:
+  sgBastionHost:
+    Value: !Ref sgBastionHost
+    Export:
+      Name: !Sub "${project}-${env}-sgBastionHost-${AWS::Region}"
+  sgRds:
+    Value: !Ref sgRds
+    Export:
+      Name: !Sub "${project}-${env}-sgRds-${AWS::Region}"
+  sgPublicAlb:
+    Value: !Ref sgPublicAlb
+    Export:
+      Name: !Sub "${project}-${env}-sgPublicAlb-${AWS::Region}"
+  sgEc2Web:
+    Value: !Ref sgEc2Web
+    Export:
+      Name: !Sub "${project}-${env}-sgEc2Web-${AWS::Region}"

@@ -1,0 +1,563 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: 'CloudFormation Template to deploy IAM policies and roles'
+Parameters:
+  project:
+    Type: String
+    Default: cloudweb
+    Description:  Project Name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description:  Environment Name
+  s3ArtifactsBucketArn:
+    Type: String
+    Description: ARN of s3 media artifacts bucket
+  instanceIdsParamStoreName:
+    Type: String
+    Description: Name of an instance id parameter store
+  dbName:
+    Type: String
+    Description: Name of an RDS instance
+  asgName: 
+    Type: String
+    Description:  Name of an autoscaling group
+  freeMemSsmDocumentName:
+    Type: String
+    Description: Name of a free memory metrics SSM Document
+  amiIdParamStoreName:
+    Type: String
+    Description: Name of an AMI ID parameter store
+
+Resources:
+  backupIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${project}-${env}-backupIamRole-${AWS::Region}
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - backup.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup
+        - arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores
+      Tags:
+        - Key: Name
+          Value: !Sub ${project}-${env}-backupIamRole-${AWS::Region}
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+  
+  rdsStartStopIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${project}-${env}-rdsStartStopIamRole-${AWS::Region}
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement: 
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: !Sub ${project}-${env}-rdsStartStopIamPolicy-${AWS::Region}
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rds:StopDBInstance
+                  - rds:StartDBInstance
+                Resource:
+                  - !Sub arn:aws:rds:${AWS::Region}:${AWS::AccountId}:db:${dbName}
+        - PolicyName: !Sub ${project}-${env}-cloudWatchLogs-${AWS::Region}
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: cloudWatchLogsAccess
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:CreateLogGroup
+                  - logs:PutLogEvents
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*
+      Tags:
+        - Key: Name
+          Value: !Sub ${project}-${env}-rdsStartStopIamRole-${AWS::Region}
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+
+  ec2StartStopIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${project}-${env}-ec2StartStopIamRole-${AWS::Region}
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement: 
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: !Sub ${project}-${env}-asgIamPolicy-${AWS::Region}
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - autoscaling:UpdateAutoScalingGroup
+                Resource:
+                  - !Sub arn:aws:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${asgName}
+        - PolicyName: !Sub ${project}-${env}-cloudWatchLogs-${AWS::Region}
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: cloudWatchLogsAccess
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:CreateLogGroup
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*"
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-rdsStartStopIamRole-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+  
+  ec2InstanceIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${project}-${env}-ec2InstanceIamRole-${AWS::Region}"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: !Sub "${project}-${env}-s3ArtifactsBucketIamPolicy-${AWS::Region}"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+                - s3:PutAnalyticsConfiguration
+                - s3:GetObjectVersionTagging
+                - s3:GetObjectAcl
+                - s3:GetBucketObjectLockConfiguration
+                - s3:GetIntelligentTieringConfiguration
+                - s3:PutLifecycleConfiguration
+                - s3:GetObjectVersionAcl
+                - s3:PutBucketAcl
+                - s3:PutObjectTagging
+                - s3:GetBucketPolicyStatus
+                - s3:GetObjectRetention
+                - s3:GetBucketWebsite
+                - s3:PutReplicationConfiguration
+                - s3:GetObjectAttributes
+                - s3:PutObjectLegalHold
+                - s3:GetObjectLegalHold
+                - s3:GetBucketNotification
+                - s3:PutBucketCORS
+                - s3:GetReplicationConfiguration
+                - s3:PutObject
+                - s3:GetObject
+                - s3:PutBucketNotification
+                - s3:PutBucketLogging
+                - s3:PutObjectVersionAcl
+                - s3:GetAnalyticsConfiguration
+                - s3:PutBucketObjectLockConfiguration
+                - s3:GetObjectVersionForReplication
+                - s3:GetLifecycleConfiguration
+                - s3:GetInventoryConfiguration
+                - s3:GetBucketTagging
+                - s3:PutAccelerateConfiguration
+                - s3:GetBucketLogging
+                - s3:GetAccelerateConfiguration
+                - s3:GetObjectVersionAttributes
+                - s3:GetBucketPolicy
+                - s3:PutEncryptionConfiguration
+                - s3:GetEncryptionConfiguration
+                - s3:GetObjectVersionTorrent
+                - s3:PutBucketTagging
+                - s3:GetBucketRequestPayment
+                - s3:GetObjectTagging
+                - s3:GetMetricsConfiguration
+                - s3:GetBucketOwnershipControls
+                - s3:PutBucketVersioning
+                - s3:PutObjectAcl
+                - s3:GetBucketPublicAccessBlock
+                - s3:PutBucketPublicAccessBlock
+                - s3:PutIntelligentTieringConfiguration
+                - s3:PutMetricsConfiguration
+                - s3:PutBucketOwnershipControls
+                - s3:PutObjectVersionTagging
+                - s3:GetBucketVersioning
+                - s3:GetBucketAcl
+                - s3:PutInventoryConfiguration
+                - s3:GetObjectTorrent
+                - s3:PutBucketWebsite
+                - s3:PutBucketRequestPayment
+                - s3:PutObjectRetention
+                - s3:GetBucketCORS
+                - s3:PutBucketPolicy
+                - s3:GetBucketLocation
+                - s3:GetObjectVersion
+              Resource:
+              - !Sub "${s3ArtifactsBucketArn}"
+              - !Sub "${s3ArtifactsBucketArn}/*"
+        - PolicyName: !Sub "${project}-${env}-ssmPolicy-${AWS::Region}"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Sid: ssmParameterPermissions
+              Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${instanceIdsParamStoreName}
+            - Sid: ssmDocumentPermissions
+              Effect: Allow
+              Action: ssm:CreateAssociation
+              Resource:
+                - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:document/${freeMemSsmDocumentName}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:managed-instance/*
+        - PolicyName: !Sub "${project}-${env}-cloudwatchPolicy-${AWS::Region}"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Sid: cloudwatchAlarmPermissions
+              Effect: Allow
+              Action: cloudwatch:PutMetricAlarm
+              Resource: !Sub arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${project}-${env}-*-${AWS::Region}
+            - Sid: cloudwatchMetricPermissions
+              Effect: Allow
+              Action: cloudwatch:PutMetricData
+              Resource: !Sub arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:metric/Custom-CloudWeb-Metrics/*
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-ec2InstanceIamRole-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+  
+  ec2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub "${project}-${env}-CloudWatchAgentServerInstanceProfile-${AWS::Region}"
+      Path: /
+      Roles:
+        - !Ref ec2InstanceIamRole
+
+  lambdaRoleForUpdateInstanceIdFunction: 
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "${project}-${env}-lambdaRoleForUpdateInstanceIdFunction-${AWS::Region}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement: 
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: !Sub "${project}-${env}-ssmPolicy-${AWS::Region}"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Sid: ssmParameterPermissions
+              Effect: Allow
+              Action: ssm:PutParameter
+              Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${instanceIdsParamStoreName}
+        # - PolicyName: !Sub ${project}-${env}-launchTemplatePolicy-${AWS::Region}
+        #   PolicyDocument:
+        #     Version: '2012-10-17'
+        #     Statement:
+        #     - Sid: launchTemplatePolicy
+        #       Effect: Allow
+        #       Action:
+        #         - ec2:DescribeLaunchTemplateVersions
+        #       Resource: "*"
+        # - PolicyName: !Sub ${project}-${env}-cloudWatchPutAlarm-${AWS::Region}
+        #   PolicyDocument:
+        #     Version: '2012-10-17'
+        #     Statement:
+        #     - Sid: cloudWatchPutMetricAlarm
+        #       Effect: Allow
+        #       Action: cloudwatch:PutMetricAlarm
+        #       Resource: !Sub arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${project}-${env}-*
+        - PolicyName: !Sub "${project}-${env}-cloudWatchLogs-${AWS::Region}"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: cloudWatchLogsAccess
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:CreateLogGroup
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*"
+      Tags:
+          - Key: Name
+            Value: !Sub "${project}-${env}-lambdaRoleForUpdateInstanceIdFunction-${AWS::Region}"
+          - Key: project
+            Value: !Ref project
+          - Key: environment
+            Value: !Ref env
+
+  lambdaRoleForCreateAmiFunction: 
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "${project}-${env}-lambdaRoleForCreateAmiFunction-${AWS::Region}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement: 
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: !Sub "${project}-${env}-createAmiPolicy-${AWS::Region}"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Sid: createAmiPolicy
+              Effect: Allow
+              Action:
+              - ec2:CreateTags
+              - ec2:CreateImage
+              Resource:
+                - !Sub arn:aws:ec2:${AWS::Region}::image/*
+                - !Sub arn:aws:ec2:${AWS::Region}::snapshot/*
+                - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*
+        - PolicyName: !Sub "${project}-${env}-ssmPolicy-${AWS::Region}"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Sid: ssmParameterPermissions
+              Effect: Allow
+              Action: 
+                - ssm:GetParameter
+              Resource: 
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${instanceIdsParamStoreName}
+        - PolicyName: !Sub ${project}-${env}-cloudWatchLogs-${AWS::Region}
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: cloudWatchLogsAccess
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:CreateLogGroup
+                  - logs:PutLogEvents
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*
+      Tags:
+        - Key: Name
+          Value: !Sub ${project}-${env}-lambdaRoleForCreateAmiFunction-${AWS::Region}
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+
+  lambdaRoleForAsgLaunchTemplate: 
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub ${project}-${env}-lambdaRoleForAsgLaunchTemplate-${AWS::Region}
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement: 
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: !Sub "${project}-${env}-ssmPolicy-${AWS::Region}"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Sid: ssmParameterPermissions
+              Effect: Allow
+              Action: 
+                - ssm:PutParameter
+              Resource: 
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${amiIdParamStoreName}
+        - PolicyName: !Sub ${project}-${env}-ec2AsgLaunchtemplate-${AWS::Region}
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Sid: ec2AsgLaunchtemplate
+              Effect: Allow
+              Action:
+                - ec2:CreateLaunchTemplateVersion
+                - ec2:DescribeLaunchTemplateVersions
+              Resource:
+                - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*
+        - PolicyName: !Sub ${project}-${env}-ec2Images-${AWS::Region}
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Sid: ec2Images
+              Effect: Allow
+              Action:
+                - ec2:DescribeImages
+                - ec2:Describe*
+              Resource:
+                - "*"
+        - PolicyName: !Sub ${project}-${env}-cloudWatchLogs-${AWS::Region}
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: cloudWatchLogsAccess
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:CreateLogGroup
+                  - logs:PutLogEvents
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*
+      Tags:
+          - Key: Name
+            Value: !Sub ${project}-${env}-lambdaRoleForAsgLaunchTemplate-${AWS::Region}
+          - Key: project
+            Value: !Ref project
+          - Key: environment
+            Value: !Ref env
+  
+  lambdaRoleForTriggerScaleInAsgFunc: 
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub ${project}-${env}-lambdaRoleForTriggerScaleInAsg-${AWS::Region}
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement: 
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: !Sub ${project}-${env}-cloudwatchPolicyForTriggerScaleInAsg-${AWS::Region}
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: cloudwatchPolicyForTriggerScaleInAsg
+                Effect: Allow
+                Action: cloudwatch:DescribeAlarms
+                Resource:
+                  - !Sub arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:*
+                  - !Sub arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:*
+        - PolicyName: !Sub ${project}-${env}-asgPolicyForTriggerScaleInAsg-${AWS::Region}
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: cloudwatchPolicyForTriggerScaleInAsg
+                Effect: Allow
+                Action:
+                  - autoscaling:ExecutePolicy
+                  - autoscaling:DescribeAutoScalingGroups
+                Resource:
+                  - !Sub arn:aws:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${asgName}
+        - PolicyName: !Sub ${project}-${env}-cloudWatchLogs-${AWS::Region}
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: cloudWatchLogsAccess
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:CreateLogGroup
+                  - logs:PutLogEvents
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*
+      Tags:
+          - Key: Name
+            Value: !Sub ${project}-${env}-lambdaRoleForTriggerScaleInAsg-${AWS::Region}
+          - Key: project
+            Value: !Ref project
+          - Key: environment
+            Value: !Ref env
+
+Outputs:
+  backupIamRoleArn:
+    Value: !GetAtt backupIamRole.Arn
+    Export:
+      Name: !Sub ${project}-${env}-backupIamRoleArn-${AWS::Region}
+  rdsStartStopIamRoleArn:
+    Value: !GetAtt rdsStartStopIamRole.Arn
+    Export:
+      Name: !Sub ${project}-${env}-rdsStartStopIamRoleArn-${AWS::Region}
+  ec2StartStopIamRoleArn:
+    Value: !GetAtt ec2StartStopIamRole.Arn
+    Export:
+      Name: !Sub ${project}-${env}-ec2StartStopIamRoleArn-${AWS::Region}
+  ec2InstanceIamRoleArn:
+    Value: !GetAtt ec2InstanceIamRole.Arn
+    Export:
+      Name: !Sub ${project}-${env}-ec2InstanceIamRole-${AWS::Region}
+  ec2InstanceProfileName:
+    Value: !Ref ec2InstanceProfile
+    Export:
+      Name: !Sub ${project}-${env}-ec2InstanceProfileName-${AWS::Region}
+  ec2InstanceProfileArn:
+    Value: !GetAtt ec2InstanceProfile.Arn
+    Export:
+      Name: !Sub ${project}-${env}-ec2InstanceProfileArn-${AWS::Region}
+  lambdaRoleForUpdateInstanceIdFunctionArn:
+    Value: !GetAtt lambdaRoleForUpdateInstanceIdFunction.Arn
+    Export:
+      Name: !Sub ${project}-${env}-lambdaRoleForUpdateInstanceIdFunctionArn-${AWS::Region}
+  lambdaRoleForCreateAmiFunctionArn:
+    Value: !GetAtt lambdaRoleForCreateAmiFunction.Arn
+    Export:
+      Name: !Sub ${project}-${env}-lambdaRoleForCreateAmiArn-${AWS::Region}
+  lambdaRoleForAsgLaunchTemplateArn:
+    Value: !GetAtt lambdaRoleForAsgLaunchTemplate.Arn
+    Export:
+      Name: !Sub ${project}-${env}-lambdaRoleForAsgLaunchTemplate-${AWS::Region}
+  lambdaRoleForAsgLaunchTemplateArn:
+    Value: !GetAtt lambdaRoleForAsgLaunchTemplate.Arn
+    Export:
+      Name: !Sub ${project}-${env}-lambdaRoleForAsgLaunchTemplate-${AWS::Region}
+  lambdaRoleForTriggerScaleInAsgFuncArn:
+    Value: !GetAtt lambdaRoleForTriggerScaleInAsgFunc.Arn
+    Export:
+      Name: !Sub ${project}-${env}-lambdaRoleForTriggerScaleInAsgFuncArn-${AWS::Region}

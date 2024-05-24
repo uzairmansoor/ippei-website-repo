@@ -1,0 +1,60 @@
+Description: Driver template to create S3 buckets
+Parameters:
+  project:
+    Type: String
+    Default: cloudweb
+    Description:  Project Name
+  env:
+    Type: String
+    Default: prod
+    AllowedValues: [prod, dev, qa]
+    Description:  Environment Name  
+  s3ArtifactPath:
+    Type: String
+    Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
+    Description: "Artifact bucket path"
+
+Resources:  
+  s3ArtifactsBucket:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/s3/s3-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        s3BucketName: artifacts
+        s3BucketAccessControl: Private
+        s3VersioningStatus: Enabled
+        websiteUrl: https://netsolcloudservices.com
+        # stagWebsiteUrl: https://stag.netsolcloudservices.com
+        linkedinUrl: https://www.linkedin.com
+        # keapUrl: https://keap.app
+        s3ObjectOwnership: BucketOwnerPreferred
+        sseAlgorithm: AES256
+  
+  s3CfAccessLogBucket:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/s3/s3-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        s3BucketName: cf-logs
+        s3BucketAccessControl: Private
+        s3VersioningStatus: Enabled
+        websiteUrl: https://netsolcloudservices.com
+        # stagWebsiteUrl: https://stag.netsolcloudservices.com
+        linkedinUrl: https://www.linkedin.com
+        # keapUrl: https://keap.app
+        s3ObjectOwnership: BucketOwnerPreferred
+        sseAlgorithm: AES256
+
+Outputs:
+  s3ArtifactsBucket:
+    Value: !Ref s3ArtifactsBucket
+    Export:
+      Name: !Sub "${project}-${env}-s3ArtifactsBucket-${AWS::Region}"
+  s3CfAccessLogBucket:
+    Value: !Ref s3CfAccessLogBucket
+    Export:
+      Name: !Sub "${project}-${env}-s3CfAccessLogBucketStack-${AWS::Region}"

@@ -1,0 +1,72 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Template to deploy ec2 instance
+Parameters:
+  project:
+    Type: String
+    Description:  Project Name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description:  Environment Name
+  imageId:
+    Type: String
+    Default: ami-04ddc481cf25ffc1b
+    Description: ID of the AMI
+  instanceType:
+    Type: String
+    Default: t2.small
+    Description: instance type
+  ec2SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: ID of the subnet 
+  ec2SShSecurityGroup:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: ID of the security group to allow SSh traffic
+  serverName:
+    Type: String
+    Description: name of instance
+  keyPairName:
+    Type: String
+    Description: Name of key pair
+  ebsVolumeSize:
+    Type: Number 
+    Default: 30
+    Description: Size of the Ebs volume, in GiBs
+  ebsVolumeType:
+    Type: String
+    AllowedValues: [io1 , gp3 , gp2]
+    Default: gp3
+    Description: Type of the Ebs volume
+  ebsMappingDevineName:
+    Type: String
+    Description: Name of the device
+
+Resources: 
+  ec2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      SecurityGroupIds:
+        - !Ref ec2SShSecurityGroup
+      InstanceType: !Ref instanceType
+      BlockDeviceMappings:
+        - DeviceName: !Ref ebsMappingDevineName
+          Ebs:
+            VolumeSize: !Ref ebsVolumeSize
+            VolumeType: !Ref ebsVolumeType
+      SubnetId: !Ref ec2SubnetId
+      ImageId: !Ref imageId
+      KeyName: !Ref keyPairName
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-${serverName}-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+     
+Outputs:
+  ec2Instance:
+    Value: !Ref ec2Instance
+    Export:
+      Name: !Sub "${project}-${env}-${serverName}-${AWS::Region}"

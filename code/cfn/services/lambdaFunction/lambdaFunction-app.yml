@@ -1,0 +1,103 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "CloudFormation Template to deploy lambda functions"
+
+Parameters:
+  project:
+    Type: String
+    Description: Project name
+  env:
+    Type: String
+    Default: stag
+    AllowedValues: [prod, dev, qa, stag]
+    Description: Environment name
+  lambdaFunctionName:
+    Type: String
+    Description: Name of the lambda function
+  runtimeVersion:
+    Type: String
+    Description: The identifier of the function's runtime
+  lambdaHandler:
+    Type: String
+    Description: Method within your code that lambda calls to run custom cloudwatch lambda function
+  timeout:
+    Type: String
+    Description: Amount of time (in seconds) that lambda allows a function to run before stopping it
+  lambdaExecutionRoleArn:
+    Type: String
+    Description: ARN of lambda execution role
+  s3BucketName:
+    Type: String
+    Description: An amazon S3 bucket in the same AWS region as your function
+  s3Key:
+    Type: String
+    Description: Amazon S3 key of the deployment package
+  launchTemplateName:
+    Type: String
+    Description: Name of the autoscaling group launch template
+  instanceIdsParamStore:
+    Type: String
+    Description: Name of ssm parameter store
+  asgName:
+    Type: String
+    Description: Name of the auto scaling group
+  scaleInPolicyName:
+    Type: String
+    Description: Name of the scale in step scaling policy
+  freeMemScaleInStepScalingPolicyArn:
+    Type: String
+    Description: Arn of free memory scale in step scaling policy
+  freeMemScaleOutStepScalingPolicyArn:
+    Type: String
+    Description: Arn of free memory scale out step scaling policy
+  snsTopicArn:
+    Type: String
+    Description: ARN of the SNS topic to which the notifications will be sent
+  amiIdParamStoreName:
+    Type: String
+    Description: Name of an AMI ID parameter store
+  dBInstanceName:
+    Type: String
+    Description: Name of an RDS instance
+
+Resources:
+  lambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Ref lambdaFunctionName
+      Runtime: !Ref runtimeVersion
+      Handler: !Ref lambdaHandler
+      Timeout: !Ref timeout
+      Role: !Ref lambdaExecutionRoleArn
+      Environment:
+        Variables:
+          project: !Sub "${project}"
+          env: !Sub "${env}"
+          launchTemplateName: !Ref launchTemplateName
+          instanceIdsParamStore: !Ref instanceIdsParamStore
+          asgName: !Ref asgName
+          scaleInPolicyName: !Ref scaleInPolicyName
+          freeMemScaleInStepScalingPolicyArn: !Ref freeMemScaleInStepScalingPolicyArn
+          freeMemScaleOutStepScalingPolicyArn: !Ref freeMemScaleOutStepScalingPolicyArn
+          snsTopicArn: !Ref snsTopicArn
+          amiIdParamStoreName: !Ref amiIdParamStoreName
+          dBInstanceName: !Ref dBInstanceName
+      Code:
+        S3Bucket: !Ref s3BucketName
+        S3Key: !Ref s3Key
+      Tags:
+          - Key: Name
+            Value: !Sub ${project}-${env}-customAlarmsLambdaFunction
+          - Key: project
+            Value: !Ref project
+          - Key: env
+            Value: !Ref env
+
+Outputs:
+  lambdaFunctionName:
+    Value: !Ref lambdaFunction
+    Export:
+      Name: !Sub "${lambdaFunctionName}"
+  lambdaFunctionArn:
+    Value: !GetAtt lambdaFunction.Arn
+    Export:
+      Name: !Sub "${lambdaFunctionName}-Arn"
