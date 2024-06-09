@@ -8,6 +8,10 @@ Parameters:
     Type: String
     AllowedValues: [prod, dev, qa]
     Description:  Environment Name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   vpcCidr:
     Type: String
     Description:  VPC CIDR
@@ -88,11 +92,13 @@ Resources:
       EnableDnsSupport: !Ref vpcDnsSupport
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-vpc-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-vpc-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
           Value: !Ref env
+        - Key: app
+          Value: !Ref app
 
 #subnets public 
   publicSubnet1:
@@ -105,11 +111,13 @@ Resources:
       VpcId: !Ref vpc
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-public-subnet1-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-public-subnet1-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
-          Value: !Ref env   
+          Value: !Ref env
+        - Key: app
+          Value: !Ref app   
   publicSubnet2:
     Condition: isAZ2
     Type: "AWS::EC2::Subnet"
@@ -120,11 +128,13 @@ Resources:
       VpcId: !Ref vpc
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-public-subnet2-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-public-subnet2-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
-          Value: !Ref env  
+          Value: !Ref env
+        - Key: app
+          Value: !Ref app  
 
   #private subnet
   privateSubnet1:
@@ -136,11 +146,13 @@ Resources:
       VpcId: !Ref vpc
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-private-subnet1-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-private-subnet1-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
           Value: !Ref env
+        - Key: app
+          Value: !Ref app
   privateSubnet2:
     Condition: isAZ2
     Type: "AWS::EC2::Subnet"
@@ -150,11 +162,13 @@ Resources:
       VpcId: !Ref vpc
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-private-subnet2-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-private-subnet2-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
           Value: !Ref env
+        - Key: app
+          Value: !Ref app
 
 #protected subnet
   protectedSubnet1:
@@ -166,11 +180,13 @@ Resources:
       VpcId: !Ref vpc
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-protected-subnet1-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-protected-subnet1-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
           Value: !Ref env
+        - Key: app
+          Value: !Ref app
   protectedSubnet2:
     Condition: isAZ2
     Type: "AWS::EC2::Subnet"
@@ -180,11 +196,13 @@ Resources:
       VpcId: !Ref vpc
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-protected-subnet2-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-protected-subnet2-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
           Value: !Ref env
+        - Key: app
+          Value: !Ref app
 
 #VpcinternetGateway
   internetGateWay:
@@ -192,7 +210,7 @@ Resources:
     Properties:
       Tags:
           - Key: Name
-            Value: !Sub "${project}-${env}-internetgateWay-${AWS::Region}"
+            Value: !Sub "${project}-${env}-${app}-internetgateWay-${AWS::Region}"
           - Key: project
             Value: !Ref project
           - Key: environment
@@ -216,7 +234,7 @@ Resources:
       AllocationId:  !GetAtt natGateWayElasticIP1.AllocationId
       Tags:
           - Key: Name
-            Value: !Sub "${project}-${env}-natgateway1-${AWS::Region}"
+            Value: !Sub "${project}-${env}-${app}-natgateway1-${AWS::Region}"
           - Key: project
             Value: !Ref project
           - Key: environment
@@ -229,7 +247,7 @@ Resources:
       Domain: "vpc"
       Tags:
           - Key: Name
-            Value: !Sub "${project}-${env}-natGateWayElasticIP1-${AWS::Region}"
+            Value: !Sub "${project}-${env}-${app}-natGateWayElasticIP1-${AWS::Region}"
           - Key: project
             Value: !Ref project
           - Key: environment
@@ -242,11 +260,13 @@ Resources:
       VpcId: !Ref vpc
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-public-routeTable-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-public-routeTable-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
           Value: !Ref env
+        - Key: app
+          Value: !Ref app
   routeTablePublicRoute01:
     Type: "AWS::EC2::Route"
     DependsOn: internetGateWayAttachment
@@ -274,11 +294,13 @@ Resources:
       VpcId: !Ref vpc
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-private-routeTable1-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-private-routeTable1-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
           Value: !Ref env
+        - Key: app
+          Value: !Ref app
   routeTablePrivate1Route01:
     Condition: isAZ1
     Type: "AWS::EC2::Route"
@@ -300,11 +322,13 @@ Resources:
       VpcId: !Ref vpc
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-private-routeTable2-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-private-routeTable2-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
           Value: !Ref env
+        - Key: app
+          Value: !Ref app
   routeTablePrivate2Route01:
     Condition: isAZ2
     Type: "AWS::EC2::Route"
@@ -326,11 +350,13 @@ Resources:
       VpcId: !Ref vpc
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-protected-routeTable1-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-protected-routeTable1-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
           Value: !Ref env
+        - Key: app
+          Value: !Ref app
   routeTableProtected1Route01:
     Type: "AWS::EC2::Route"
     Properties:
@@ -350,11 +376,13 @@ Resources:
       VpcId: !Ref vpc
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-protected-routeTable2-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-protected-routeTable2-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
           Value: !Ref env
+        - Key: app
+          Value: !Ref app
   routeTableProtected2Route01:
     Condition: isAZ2
     Type: "AWS::EC2::Route"
@@ -377,7 +405,7 @@ Resources:
       VpcId: !Ref vpc
       Tags:
           - Key: Name
-            Value: !Sub "${project}-${env}-naclPublic01-${AWS::Region}"
+            Value: !Sub "${project}-${env}-${app}-naclPublic01-${AWS::Region}"
           - Key: project
             Value: !Ref project
           - Key: environment
@@ -414,7 +442,7 @@ Resources:
       VpcId: !Ref vpc
       Tags:
           - Key: Name
-            Value: !Sub "${project}-${env}-publicNACL2-${AWS::Region}"
+            Value: !Sub "${project}-${env}-${app}-publicNACL2-${AWS::Region}"
           - Key: project
             Value: !Ref project
           - Key: environment
@@ -453,7 +481,7 @@ Resources:
       VpcId: !Ref vpc
       Tags:
           - Key: Name
-            Value: !Sub "${project}-${env}-privateNACL1-${AWS::Region}"
+            Value: !Sub "${project}-${env}-${app}-privateNACL1-${AWS::Region}"
           - Key: project
             Value: !Ref project
           - Key: environment
@@ -490,7 +518,7 @@ Resources:
       VpcId: !Ref vpc
       Tags:
           - Key: Name
-            Value: !Sub "${project}-${env}-privateNACL2-${AWS::Region}"
+            Value: !Sub "${project}-${env}-${app}-privateNACL2-${AWS::Region}"
           - Key: project
             Value: !Ref project
           - Key: environment
@@ -529,7 +557,7 @@ Resources:
       VpcId: !Ref vpc
       Tags:
           - Key: Name
-            Value: !Sub "${project}-${env}-naclProtected01-${AWS::Region}"
+            Value: !Sub "${project}-${env}-${app}-naclProtected01-${AWS::Region}"
           - Key: project
             Value: !Ref project
           - Key: environment
@@ -566,7 +594,7 @@ Resources:
       VpcId: !Ref vpc
       Tags:
           - Key: Name
-            Value: !Sub "${project}-${env}-protectedNACL2-${AWS::Region}"
+            Value: !Sub "${project}-${env}-${app}-protectedNACL2-${AWS::Region}"
           - Key: project
             Value: !Ref project
           - Key: environment
@@ -601,50 +629,50 @@ Outputs:
   vpcId:
     Value: !Ref vpc
     Export:
-      Name: !Sub "${project}-${env}-vpcId-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-vpcId-${AWS::Region}"
   publicSubnet1:
     Condition: isAZ1
     Value: !Ref publicSubnet1
     Export:
-      Name: !Sub "${project}-${env}-publicSubnet1-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-publicSubnet1-${AWS::Region}"
   publicSubnet2:
     Condition: isAZ2
     Value: !Ref publicSubnet2
     Export:
-      Name: !Sub "${project}-${env}-publicSubnet2-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-publicSubnet2-${AWS::Region}"
   privateSubnet1:
     Condition: isAZ1
     Value: !Ref privateSubnet1
     Export:
-      Name: !Sub "${project}-${env}-privateSubnet1-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-privateSubnet1-${AWS::Region}"
   privateSubnet2:
     Condition: isAZ2
     Value: !Ref privateSubnet2
     Export:
-      Name: !Sub "${project}-${env}-privateSubnet2-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-privateSubnet2-${AWS::Region}"
   protectedSubnet1:
     Condition: isAZ1
     Value: !Ref protectedSubnet1
     Export:
-      Name: !Sub "${project}-${env}-protectedSubnet1-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-protectedSubnet1-${AWS::Region}"
   protectedSubnet2:
     Condition: isAZ2
     Value: !Ref protectedSubnet2
     Export:
-      Name: !Sub "${project}-${env}-protectedSubnet2-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-protectedSubnet2-${AWS::Region}"
   natGateWay1:
     Condition: isAZ1
     Value: !Ref natGateWay1
     Export:
-      Name: !Sub "${project}-${env}-natGateWay1-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-natGateWay1-${AWS::Region}"
   internetGateWay:
     Condition: isAZ1
     Value: !Ref internetGateWay
     Export:
-      Name: !Sub "${project}-${env}-internetGateWay-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-internetGateWay-${AWS::Region}"
   natGateWayElasticIP1:
     Condition: isAZ1
     Value: !Ref natGateWayElasticIP1
     Export:
-      Name: !Sub "${project}-${env}-natGateWayElasticIP1-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-natGateWayElasticIP1-${AWS::Region}"
   

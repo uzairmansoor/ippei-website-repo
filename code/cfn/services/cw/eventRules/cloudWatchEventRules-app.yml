@@ -11,6 +11,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description: Environment name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   autoScalingGroupName:
     Type: String
     Description: Name of the Auto scaling group
@@ -75,12 +79,9 @@ Parameters:
     Type: String
     AllowedValues: [ENABLED, DISABLED]
     Description: The state of the stop event rule
-  rdsStartStopLambdaFunctionArn:
-    Type: String
-    Description: ARN of lambda function
-  ec2StartStopLambdaFunctionArn:
-    Type: String
-    Description: ARN of lambda function
+  # ec2StartStopLambdaFunctionArn:
+  #   Type: String
+  #   Description: ARN of lambda function
   updateInstanceIdCwEventRuleName:
     Type: String
     Description: Name of update Instance Id cloudwatch event rule
@@ -97,35 +98,35 @@ Conditions:
     - !Equals [ !Ref env, "stag" ]
 
 Resources:
-  cwStartEventRule:
-    Type: AWS::Events::Rule
-    Condition: isEventRuleForRdsAndEc2
-    Properties:
-      Description: CloudWatch event rule to start EC2 and RDS
-      ScheduleExpression: !Ref startScheduleExpression
-      State: !Ref cwStartEventRuleState
-      Targets:
-        - Arn: !Ref rdsStartStopLambdaFunctionArn
-          Input: !Sub '{"action": "${startAction}"}'
-          Id: 'startRdsRule'
-        - Arn: !Ref ec2StartStopLambdaFunctionArn
-          Input: !Sub '{"action": "${startAction}"}'
-          Id: 'startEc2Rule' 
+  # cwStartEventRule:
+  #   Type: AWS::Events::Rule
+  #   Condition: isEventRuleForRdsAndEc2
+  #   Properties:
+  #     Description: CloudWatch event rule to start EC2 and RDS
+  #     ScheduleExpression: !Ref startScheduleExpression
+  #     State: !Ref cwStartEventRuleState
+  #     Targets:
+  #       - Arn: !Ref rdsStartStopLambdaFunctionArn
+  #         Input: !Sub '{"action": "${startAction}"}'
+  #         Id: 'startRdsRule'
+  #       - Arn: !Ref ec2StartStopLambdaFunctionArn
+  #         Input: !Sub '{"action": "${startAction}"}'
+  #         Id: 'startEc2Rule' 
   
-  cwStopEventRule:
-    Type: AWS::Events::Rule
-    Condition: isEventRuleForRdsAndEc2
-    Properties:
-      Description: CloudWatch event rule to stop EC2 and RDS
-      ScheduleExpression: !Ref stopScheduleExpression
-      State: !Ref cwStopEventRuleState
-      Targets:  
-        - Arn: !Ref rdsStartStopLambdaFunctionArn
-          Input: !Sub '{"action": "${stopAction}"}'
-          Id: 'stopRdsRule'
-        - Arn: !Ref ec2StartStopLambdaFunctionArn
-          Input: !Sub '{"action": "${stopAction}"}'
-          Id: 'stopEc2Rule'
+  # cwStopEventRule:
+  #   Type: AWS::Events::Rule
+  #   Condition: isEventRuleForRdsAndEc2
+  #   Properties:
+  #     Description: CloudWatch event rule to stop EC2 and RDS
+  #     ScheduleExpression: !Ref stopScheduleExpression
+  #     State: !Ref cwStopEventRuleState
+  #     Targets:  
+  #       - Arn: !Ref rdsStartStopLambdaFunctionArn
+  #         Input: !Sub '{"action": "${stopAction}"}'
+  #         Id: 'stopRdsRule'
+  #       - Arn: !Ref ec2StartStopLambdaFunctionArn
+  #         Input: !Sub '{"action": "${stopAction}"}'
+  #         Id: 'stopEc2Rule'
 
   updateInstanceIdCwEventRule:
     Type: AWS::Events::Rule
@@ -145,41 +146,41 @@ Resources:
         - Id: lambdaFuctionToUpdateCustomCloudWatchAlarms
           Arn: !Ref updateInstanceIdLambdaFunctionArn
                  
-  cwEventRuleLambdaPermissionToStartRds:
-    Type: AWS::Lambda::Permission
-    Condition: isLambdaPermissionForRdsAndEc2
-    Properties:
-      FunctionName: !Ref rdsStartStopLambdaFunctionArn
-      Action: 'lambda:InvokeFunction'
-      Principal: events.amazonaws.com
-      SourceArn: !GetAtt cwStartEventRule.Arn
+  # cwEventRuleLambdaPermissionToStartRds:
+  #   Type: AWS::Lambda::Permission
+  #   Condition: isLambdaPermissionForRdsAndEc2
+  #   Properties:
+  #     FunctionName: !Ref rdsStartStopLambdaFunctionArn
+  #     Action: 'lambda:InvokeFunction'
+  #     Principal: events.amazonaws.com
+  #     SourceArn: !GetAtt cwStartEventRule.Arn
   
-  cwEventRuleLambdaPermissionToStopRds:
-    Type: AWS::Lambda::Permission
-    Condition: isLambdaPermissionForRdsAndEc2
-    Properties:
-      FunctionName: !Ref rdsStartStopLambdaFunctionArn
-      Action: 'lambda:InvokeFunction'
-      Principal: events.amazonaws.com
-      SourceArn: !GetAtt cwStopEventRule.Arn
+  # cwEventRuleLambdaPermissionToStopRds:
+  #   Type: AWS::Lambda::Permission
+  #   Condition: isLambdaPermissionForRdsAndEc2
+  #   Properties:
+  #     FunctionName: !Ref rdsStartStopLambdaFunctionArn
+  #     Action: 'lambda:InvokeFunction'
+  #     Principal: events.amazonaws.com
+  #     SourceArn: !GetAtt cwStopEventRule.Arn
   
-  cwEventRuleLambdaPermissionToStartEc2:
-    Type: AWS::Lambda::Permission
-    Condition: isLambdaPermissionForRdsAndEc2
-    Properties:
-      FunctionName: !Ref ec2StartStopLambdaFunctionArn
-      Action: 'lambda:InvokeFunction'
-      Principal: events.amazonaws.com
-      SourceArn: !GetAtt cwStartEventRule.Arn
+  # cwEventRuleLambdaPermissionToStartEc2:
+  #   Type: AWS::Lambda::Permission
+  #   Condition: isLambdaPermissionForRdsAndEc2
+  #   Properties:
+  #     FunctionName: !Ref ec2StartStopLambdaFunctionArn
+  #     Action: 'lambda:InvokeFunction'
+  #     Principal: events.amazonaws.com
+  #     SourceArn: !GetAtt cwStartEventRule.Arn
   
-  cwEventRuleLambdaPermissionToStopEc2:
-    Type: AWS::Lambda::Permission
-    Condition: isLambdaPermissionForRdsAndEc2
-    Properties:
-      FunctionName: !Ref ec2StartStopLambdaFunctionArn
-      Action: 'lambda:InvokeFunction'
-      Principal: events.amazonaws.com
-      SourceArn: !GetAtt cwStopEventRule.Arn
+  # cwEventRuleLambdaPermissionToStopEc2:
+  #   Type: AWS::Lambda::Permission
+  #   Condition: isLambdaPermissionForRdsAndEc2
+  #   Properties:
+  #     FunctionName: !Ref ec2StartStopLambdaFunctionArn
+  #     Action: 'lambda:InvokeFunction'
+  #     Principal: events.amazonaws.com
+  #     SourceArn: !GetAtt cwStopEventRule.Arn
 
   customAlarmsLambdaInvokePermission:
     Type: AWS::Lambda::Permission
@@ -228,21 +229,21 @@ Resources:
       SourceArn: !Ref snsTopicForTriggerScaleInAsgLambdaFuncArn
 
 Outputs:
-  cwStartEventRuleArn:
-    Condition: isEventRuleForRdsAndEc2
-    Value: !GetAtt cwStartEventRule.Arn
-    Export:
-      Name: !Sub '${project}-${env}-cwStartEventRuleArn' 
-  cwStopEventRuleArn:
-    Condition: isEventRuleForRdsAndEc2
-    Value: !GetAtt cwStopEventRule.Arn
-    Export:
-      Name: !Sub '${project}-${env}-cwStopEventRuleArn'
+  # cwStartEventRuleArn:
+  #   Condition: isEventRuleForRdsAndEc2
+  #   Value: !GetAtt cwStartEventRule.Arn
+  #   Export:
+  #     Name: !Sub '${project}-${env}-${app}-cwStartEventRuleArn' 
+  # cwStopEventRuleArn:
+  #   Condition: isEventRuleForRdsAndEc2
+  #   Value: !GetAtt cwStopEventRule.Arn
+  #   Export:
+  #     Name: !Sub '${project}-${env}-${app}-cwStopEventRuleArn'
   updateInstanceIdCwEventRule:
     Value: !GetAtt updateInstanceIdCwEventRule.Arn
     Export:
-      Name: !Sub '${project}-${env}-updateInstanceIdCwEventRuleArn-${AWS::Region}'
+      Name: !Sub '${project}-${env}-${app}-updateInstanceIdCwEventRuleArn-${AWS::Region}'
   ec2AmiStateChangeCwEventRule:
     Value: !GetAtt ec2AmiStateChangeCwEventRule.Arn
     Export:
-      Name: !Sub '${project}-${env}-ec2AmiStateChangeCwEventRuleArn-${AWS::Region}'
+      Name: !Sub '${project}-${env}-${app}-ec2AmiStateChangeCwEventRuleArn-${AWS::Region}'

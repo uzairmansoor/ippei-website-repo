@@ -11,16 +11,18 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description:  Environment Name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   amiId:
     Type: String
     Description:  Base AMI Id of an EC2
-
 Resources:
-  
   memUtilSSMParamStore:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub "${project}-${env}-memUtilSSMParamStore-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-memUtilSSMParamStore-${AWS::Region}"
       Type: String
       Value: |
         {
@@ -46,7 +48,7 @@ Resources:
   diskUtilSSMParamStore:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub "${project}-${env}-diskUtilSSMParamStore-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-diskUtilSSMParamStore-${AWS::Region}"
       Type: String
       Value: |
         {
@@ -68,39 +70,36 @@ Resources:
                         }
                 }
         }
-  
   instanceIdsParamStore:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub "${project}-${env}-instanceIdParamStore-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-instanceIdParamStore-${AWS::Region}"
       Type: StringList
       Value: "i-123xyz,i-321xyz"
-
   amiIdParamStore:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub "${project}-${env}-amiIdParamStore-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-amiIdParamStore-${AWS::Region}"
       Type: String
       Value: !Ref amiId
-
 Outputs:
   memUtilSSMParamStoreName:
     Value: !Ref memUtilSSMParamStore
     Export:
-      Name: !Sub "${project}-${env}-memUtilSSMParamStoreName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-memUtilSSMParamStoreName-${AWS::Region}"
   diskUtilSSMParamStoreName:
     Value: !Ref diskUtilSSMParamStore
     Export:
-      Name: !Sub "${project}-${env}-diskUtilSSMParamStoreName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-diskUtilSSMParamStoreName-${AWS::Region}"
   instanceIdsParamStoreName:
     Value: !Ref instanceIdsParamStore
     Export:
-      Name: !Sub "${project}-${env}-instanceIdsParamStoreName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-instanceIdsParamStoreName-${AWS::Region}"
   amiIdParamStoreName:
     Value: !Ref amiIdParamStore
     Export:
-      Name: !Sub "${project}-${env}-amiIdParamStoreName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-amiIdParamStoreName-${AWS::Region}"
   amiIdParamStoreValue:
     Value: !GetAtt amiIdParamStore.Value
     Export:
-      Name: !Sub "${project}-${env}-amiIdParamStoreValue-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-amiIdParamStoreValue-${AWS::Region}"

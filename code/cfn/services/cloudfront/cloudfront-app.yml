@@ -9,7 +9,11 @@ Parameters:
     Type: String
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
-    Description:  Environment Name   
+    Description:  Environment Name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app   
   targetDns:
     Type: String
     Description: Domain name for the origin 
@@ -109,19 +113,19 @@ Parameters:
   cfDistComment:
     Type: String
     Description: CloudFront Distribution Description
-  cfOriginAccessIdentityComment:
-    Type: String
-    Description: CloudFront Origin Access Identity Description
-  s3BucketDomainName: 
-    Type: String
-    Description: Name of an S3 bucket
-  s3OriginId:
-    Type: String
-    Description: Description for the S3 origin ID
-  s3PathPattern:
-    Type: String
-    Description: Path of a folder in S3 bucket
-  isEnableCfLogging:
+  # cfOriginAccessIdentityComment:
+  #   Type: String
+  #   Description: CloudFront Origin Access Identity Description
+  # s3BucketDomainName: 
+  #   Type: String
+  #   Description: Name of an S3 bucket
+  # s3OriginId:
+  #   Type: String
+  #   Description: Description for the S3 origin ID
+  # s3PathPattern:
+  #   Type: String
+  #   Description: Path of a folder in S3 bucket
+  cfEnableLogs:
     Type: String
     Default: yes
     AllowedValues: [yes, no]
@@ -132,28 +136,30 @@ Parameters:
   cfEnableCacheRequestPolicy:
     Type: String
     Description: Enable cache request policy or not
-  cfDistExportName:
-    Type: String
-    Description: Export name of a cloudfront distribution
-  enableAlias:
-    Type: String
-    Description: Enable Alias for cloudfront distribution or not
+  # cfDistExportName:
+  #   Type: String
+  #   Description: Export name of a cloudfront distribution
+  # cfEnableAlias:
+  #   Type: String
+  #   Default: yes
+  #   AllowedValues: [yes, no]
+  #   Description: Enable Alias for cloudfront distribution or not
 
 Conditions:
-  isCreateCfOriginAccessIdentityForS3: !Not [ !Equals [!Ref s3BucketDomainName, "" ]]
-  isCreateAlbOrigin: !Not [ !Equals [!Ref targetDns, "" ]]
-  isCreateS3Origin: !Not [ !Equals [!Ref s3BucketDomainName, "" ]]
-  isEnableCfLogging: !Equals [!Ref isEnableCfLogging, yes ]
+  # isCreateCfOriginAccessIdentityForS3: !Not [ !Equals [!Ref s3BucketDomainName, "" ]]
+  # isCreateAlbOrigin: !Not [ !Equals [!Ref targetDns, "" ]]
+  # isCreateS3Origin: !Not [ !Equals [!Ref s3BucketDomainName, "" ]]
+  isEnableCfLogging: !Equals [!Ref cfEnableLogs, yes ]
   isEnableCacheRequestPolicy: !Equals [!Ref cfEnableCacheRequestPolicy, yes ]
-  isEnableAlias: !Equals [!Ref enableAlias, yes ]
+  # isEnableAlias: !Equals [!Ref cfEnableAlias, yes ]
 
 Resources:
-  cloudFrontOriginAccessIdentityForS3:
-    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
-    Condition: isCreateCfOriginAccessIdentityForS3
-    Properties:
-      CloudFrontOriginAccessIdentityConfig:
-        Comment: !If [ isCreateCfOriginAccessIdentityForS3, !Ref cfOriginAccessIdentityComment, !Ref "AWS::NoValue" ] #!Ref cfOriginAccessIdentityComment
+  # cloudFrontOriginAccessIdentityForS3:
+  #   Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+  #   Condition: isCreateCfOriginAccessIdentityForS3
+  #   Properties:
+  #     CloudFrontOriginAccessIdentityConfig:
+  #       Comment: !If [ isCreateCfOriginAccessIdentityForS3, !Ref cfOriginAccessIdentityComment, !Ref "AWS::NoValue" ] #!Ref cfOriginAccessIdentityComment
 
   cacheRequestPolicy:
     Type: AWS::CloudFront::CachePolicy
@@ -184,23 +190,23 @@ Resources:
       DistributionConfig:
         Comment: !Ref cfDistComment 
         Origins:
-          - !If
-            - isCreateS3Origin
-            - Id: !Ref s3OriginId
-              DomainName: !Sub ${s3BucketDomainName}
-              S3OriginConfig:
-                OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${cloudFrontOriginAccessIdentityForS3}"
-            - !Ref "AWS::NoValue"
-          - !If
-            - isCreateAlbOrigin
-            - Id: !Ref targetOriginId
-              DomainName: !Ref targetDns
-              CustomOriginConfig:
-                HTTPSPort: !Ref cfHttpsPort
-                OriginProtocolPolicy: !Ref originProtocolPolicy
-                OriginSSLProtocols:
-                  - !Ref cfOriginSSLProtocols
-            - !Ref "AWS::NoValue"
+          # - !If
+          #   - isCreateS3Origin
+          #   - Id: !Ref s3OriginId
+          #     DomainName: !Sub ${s3BucketDomainName}
+          #     S3OriginConfig:
+          #       OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${cloudFrontOriginAccessIdentityForS3}"
+          #   - !Ref "AWS::NoValue"
+          # - !If
+            # - isCreateAlbOrigin
+          - Id: !Ref targetOriginId
+            DomainName: !Ref targetDns
+            CustomOriginConfig:
+              HTTPSPort: !Ref cfHttpsPort
+              OriginProtocolPolicy: !Ref originProtocolPolicy
+              OriginSSLProtocols:
+                - !Ref cfOriginSSLProtocols
+            # - !Ref "AWS::NoValue"
         Logging: !If
           - isEnableCfLogging
           - Bucket: !Ref s3CfAccessLogBucketDomainName
@@ -208,41 +214,41 @@ Resources:
             Prefix: !Ref accessLogPrefix
           - !Ref "AWS::NoValue"
         Aliases:
-          - !If
-            - isEnableAlias
-            - !Ref cfAlias
-            - !Ref "AWS::NoValue"
+          # - !If
+            # - isEnableAlias
+          - !Ref cfAlias
+            # - !Ref "AWS::NoValue"
         DefaultCacheBehavior: 
-          !If
-            - isCreateAlbOrigin
-            - AllowedMethods:
-                - GET
-                - HEAD
-                - OPTIONS
-                - PUT
-                - PATCH
-                - POST
-                - DELETE
-              TargetOriginId: !Ref targetOriginId
-              Compress: true
-              OriginRequestPolicyId: !Ref cfOriginRequestPolicyId
-              CachePolicyId: !If [ isEnableCacheRequestPolicy, !Ref cacheRequestPolicy, !Ref cfCacheDisablePolicyId ]
-              ResponseHeadersPolicyId: !Ref cfResponseHeadersPolicyId
-              ViewerProtocolPolicy: !Ref viewerProtocolPolicy
-            - AllowedMethods:
-                - GET
-                - HEAD
-                - OPTIONS
-                - PUT
-                - PATCH
-                - POST
-                - DELETE
-              CachedMethods:
-                - GET
-                - HEAD
-              TargetOriginId: !Ref s3OriginId
-              CachePolicyId: !If [ isEnableCacheRequestPolicy, !Ref cacheRequestPolicy, !Ref cfCacheDisablePolicyId ]
-              ViewerProtocolPolicy: !Ref viewerProtocolPolicy
+          # !If
+            # - isCreateAlbOrigin
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+            - PUT
+            - PATCH
+            - POST
+            - DELETE
+          TargetOriginId: !Ref targetOriginId
+          Compress: true
+          OriginRequestPolicyId: !Ref cfOriginRequestPolicyId
+          CachePolicyId: !If [ isEnableCacheRequestPolicy, !Ref cacheRequestPolicy, !Ref cfCacheDisablePolicyId ]
+          ResponseHeadersPolicyId: !Ref cfResponseHeadersPolicyId
+          ViewerProtocolPolicy: !Ref viewerProtocolPolicy
+            # - AllowedMethods:
+            #     - GET
+            #     - HEAD
+            #     - OPTIONS
+            #     - PUT
+            #     - PATCH
+            #     - POST
+            #     - DELETE
+            #   CachedMethods:
+            #     - GET
+            #     - HEAD
+            #   TargetOriginId: !Ref s3OriginId
+            #   CachePolicyId: !If [ isEnableCacheRequestPolicy, !Ref cacheRequestPolicy, !Ref cfCacheDisablePolicyId ]
+            #   ViewerProtocolPolicy: !Ref viewerProtocolPolicy
         Enabled: !Ref cfDistributionStatus  
         HttpVersion: !Ref cfHttpVersion
         PriceClass: !Ref cfPriceClass  
@@ -252,7 +258,7 @@ Resources:
           SslSupportMethod: !Ref acmCertificateSslSupportMethod
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-${cfDistComment}-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-${cfDistComment}-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
@@ -262,8 +268,8 @@ Outputs:
   cloudFrontDistributionId:
     Value: !Ref cloudFrontDistribution
     Export:
-      Name: !Sub "${project}-${env}-${cfDistExportName}-cfDistributionId-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-cfDistributionId-${AWS::Region}"
   cloudFrontDistributionDomainName:
     Value: !GetAtt cloudFrontDistribution.DomainName
     Export:
-      Name: !Sub "${project}-${env}-${cfDistExportName}-cfDistributionDomainName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-cfDistributionDomainName-${AWS::Region}"

@@ -8,29 +8,35 @@ Parameters:
     Type: String
     Default: prod
     AllowedValues: [prod, dev, qa]
-    Description:  Environment Name  
+    Description:  Environment Name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app  
   s3ArtifactPath:
     Type: String
     Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
     Description: "Artifact bucket path"
 
 Resources:  
-  s3ArtifactsBucket:
+  s3AlbAccessLogBucket:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub "${s3ArtifactPath}/s3/s3-app.yml"
       Parameters:
         project: !Ref project
         env: !Ref env
-        s3BucketName: artifacts
+        app: alb-logs
         s3BucketAccessControl: Private
         s3VersioningStatus: Enabled
-        websiteUrl: https://netsolcloudservices.com
-        # stagWebsiteUrl: https://stag.netsolcloudservices.com
-        linkedinUrl: https://www.linkedin.com
-        # keapUrl: https://keap.app
         s3ObjectOwnership: BucketOwnerPreferred
         sseAlgorithm: AES256
+        indexDocument: index.html
+        errorDocument: error.html
+        enableWebsiteConfiguration: no
+        enableCfWritePolicy: no
+        enableS3BucketPolicy: no 
+        enableAlbBucketPolicy: yes
   
   s3CfAccessLogBucket:
     Type: AWS::CloudFormation::Stack
@@ -39,11 +45,8 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
-        s3BucketName: cf-logs
         s3BucketAccessControl: Private
         s3VersioningStatus: Enabled
-        websiteUrl: https://netsolcloudservices.com
-        # stagWebsiteUrl: https://stag.netsolcloudservices.com
         linkedinUrl: https://www.linkedin.com
         # keapUrl: https://keap.app
         s3ObjectOwnership: BucketOwnerPreferred

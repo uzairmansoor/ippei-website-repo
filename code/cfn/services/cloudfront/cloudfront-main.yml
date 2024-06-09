@@ -10,6 +10,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description:  Environment Name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   s3ArtifactPath:
     Type: String
     Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
@@ -45,7 +49,7 @@ Resources:
         acmCertificateProtocolVersion: TLSv1.2_2021
         acmCertificateSslSupportMethod: sni-only
         cfCachePolicyConfigComment: TTL for cache in cloudfront with ALB as an origin
-        cfCachePolicyConfigName: !Sub "${project}-${env}-cfCachePolicyWithAlbOrigin"
+        cfCachePolicyConfigName: !Sub "${project}-${env}-${app}-cfCachePolicyWithAlbOrigin"
         cfCachePolicyCookieBehavior: all
         cfCachePolicyHeaderBehavior: whitelist
         s3CfAccessLogBucketDomainName: !GetAtt s3CfAccessLogBucket.Outputs.s3BucketDomainName
@@ -66,4 +70,4 @@ Outputs:
   cloudFrontDistribution:
     Value: !Ref cloudFrontDistribution
     Export:
-      Name: !Sub "${project}-${env}-cloudFrontDistribution-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-cloudFrontDistribution-${AWS::Region}"

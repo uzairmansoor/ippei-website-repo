@@ -9,6 +9,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description:  Environment name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   region:
     Type: String
     Description: Name of region
@@ -49,7 +53,7 @@ Resources:
   cfTotalErrorRateAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub "${project}-${env}-${cloudfrontAlarmName}-${AWS::Region}"
+      AlarmName: !Sub "${project}-${env}-${app}-${cloudfrontAlarmName}-${AWS::Region}"
       AlarmDescription: !Sub "Trigger alarm when ${project} ${env} cloudfront total error rate is greater than or equal to ${cloudfrontTotalErrorRateThreshold}"
       MetricName: !Ref cloudfrontMetricName
       Namespace: !Ref cloudfrontNamespace
@@ -70,4 +74,4 @@ Outputs:
   cfTotalErrorRateAlarm:
     Value: !Ref cfTotalErrorRateAlarm
     Export:
-      Name: !Sub "${project}-${env}-cfTotalErrorRateAlarmName-${AWS::Region}-${AWS::AccountId}"
+      Name: !Sub "${project}-${env}-${app}-cfTotalErrorRateAlarmName-${AWS::Region}-${AWS::AccountId}"

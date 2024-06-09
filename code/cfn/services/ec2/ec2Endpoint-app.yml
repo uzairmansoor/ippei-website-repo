@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "cfn for ec2 instance connect endpoint"
+Parameters:
+  project:
+    Type: String
+    Description:  Project Name
+  env:
+    Type: String
+    AllowedValues: [prod, dev, qa]
+    Description:  Environment Name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
+  ec2EndpointClientToken:
+    Type: String
+    Description: Client token of EC2 instance endpoint
+  ec2EndpointPreserveClientIp:
+    Type: String
+    Default: True
+    Description: Select True to use the client's IP address to connect to the resource; otherwise, select False to use the ENI's IP address
+  ec2EndpointSg:
+    Type: String
+    Description: Security group id of EC2 instance connect endpoint
+  ec2EndpointSubnetId:
+    Type: String
+    Description: Subnet Id of an EC2 endpoint
+
+Resources:
+  ec2InstanceConnectEndpoint:
+    Type: AWS::EC2::InstanceConnectEndpoint
+    Properties:
+      ClientToken: !Ref ec2EndpointClientToken
+      PreserveClientIp: !Ref ec2EndpointPreserveClientIp
+      SecurityGroupIds: 
+        - !Ref ec2EndpointSg
+      SubnetId: !Ref ec2EndpointSubnetId
+      Tags:
+        - Key: Name
+          Value: !Sub "${project}-${env}-${app}-ec2InstanceConnectEndpoint-${AWS::Region}"
+        - Key: project
+          Value: !Ref project
+        - Key: environment
+          Value: !Ref env
+        - Key: app
+          Value: !Ref app
+
+Outputs:
+  ec2InstanceConnectEndpointId:
+    Value: !Ref ec2InstanceConnectEndpoint
+    Export:
+      Name: !Sub "${project}-${env}-${app}-ec2InstanceConnectEndpointId-${AWS::Region}"

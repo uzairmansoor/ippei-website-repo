@@ -10,6 +10,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description:  Environment Name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   s3ArtifactPath:
     Type: String
     Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
@@ -30,7 +34,7 @@ Resources:
         env: !Ref env
         launchTemplateEc2ImageId: ami-0409181f6a753b072
         ec2InstanceType: t2.small
-        keyPairName: !Sub "${project}-${env}-${AWS::Region}-${AWS::AccountId}"
+        keyPairName: !Sub "${project}-${env}-${app}-${AWS::Region}-${AWS::AccountId}"
         launchTemplateName: asgLaunchTemplate
         autoScalingGroupName: AutoScalingGroup
         privateSubnet1Id: !GetAtt vpc.Outputs.privateSubnet1
@@ -63,4 +67,4 @@ Outputs:
   ec2AutoscalingStack:
     Value: !Ref ec2Autoscaling
     Export:
-      Name: !Sub "${project}-${env}-ec2Autoscaling-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-ec2Autoscaling-${AWS::Region}"

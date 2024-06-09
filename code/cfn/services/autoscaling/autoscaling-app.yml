@@ -10,6 +10,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description:  Environment Name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   launchTemplateEc2ImageId:
     Type: String
     Description: AMI ID for launch template
@@ -132,7 +136,6 @@ Parameters:
     Type: String
     Default: us-east-1
     Description: Region Name
-
 Resources:
   autoscalingLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
@@ -147,7 +150,7 @@ Resources:
           - ResourceType: instance
             Tags:
               - Key: Name
-                Value: !Sub "${project}-${env}-ec2Instance-${AWS::Region}"
+                Value: !Sub "${project}-${env}-${app}-ec2Instance-${AWS::Region}"
               - Key: project
                 Value: !Ref project
               - Key: environment
@@ -176,14 +179,14 @@ Resources:
             mkdir /ssmagent
             cd /ssmagent
             wget https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb
+            sudo snap remove amazon-ssm-agent
             sudo dpkg -i amazon-ssm-agent.deb
             sudo systemctl enable amazon-ssm-agent
+            sudo systemctl start amazon-ssm-agent
             sudo systemctl status amazon-ssm-agent
             sudo apt-get install bc
             aws ssm create-association --name "${ssmAssociationName}" --targets "Key=InstanceIds,Values=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)" --region ${regionName}
-            sudo /opt/bitnami/ctlscript.sh restart php-fpm
-            sudo /opt/bitnami/ctlscript.sh restart apache
-      
+            sudo systemctl restart apache2
   autoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
@@ -197,7 +200,7 @@ Resources:
       LifecycleHookSpecificationList:
         - DefaultResult: !Ref lifecycleHookDefaultResult
           HeartbeatTimeout: !Ref lifecycleHeartbeatTimeout
-          LifecycleHookName: !Sub "${project}-${env}-TriggerLambda-${AWS::Region}"
+          LifecycleHookName: !Sub "${project}-${env}-${app}-TriggerLambda-${AWS::Region}"
           LifecycleTransition: !Ref asgLifecycleTransition
       HealthCheckType: EC2
       DesiredCapacity: !Ref autoScalingDesiredCapacity
@@ -215,70 +218,66 @@ Resources:
       AdjustmentType: !Ref stepScalingAdjustmentType
       AutoScalingGroupName: !Ref autoScalingGroup
       MetricAggregationType: !Ref stepScalingMetricAggregationType
-      PolicyName: !Sub "${project}-${env}-cpuScaleInStepScalingPolicy"
+      PolicyName: !Sub "${project}-${env}-${app}-cpuScaleInStepScalingPolicy"
       PolicyType: !Ref asgPolicyType
       StepAdjustments:
         - MetricIntervalUpperBound: !Ref cpuScaleInMetricIntervalUpperBound
           ScalingAdjustment: !Ref cpuScaleInAdjustment
-  
   cpuScaleOutStepScalingPolicy:
     Type: AWS::AutoScaling::ScalingPolicy
     Properties:
       AdjustmentType: !Ref stepScalingAdjustmentType
       AutoScalingGroupName: !Ref autoScalingGroup
       MetricAggregationType: !Ref stepScalingMetricAggregationType
-      PolicyName: !Sub "${project}-${env}-cpuScaleOutStepScalingPolicy"
+      PolicyName: !Sub "${project}-${env}-${app}-cpuScaleOutStepScalingPolicy"
       PolicyType: !Ref asgPolicyType
       StepAdjustments:
         - MetricIntervalLowerBound: !Ref cpuScaleOutMetricIntervalLowerBound
           ScalingAdjustment: !Ref cpuScaleOutAdjustment
-  
   freeMemScaleInStepScalingPolicy:
     Type: AWS::AutoScaling::ScalingPolicy
     Properties:
       AdjustmentType: !Ref stepScalingAdjustmentType
       AutoScalingGroupName: !Ref autoScalingGroup
       MetricAggregationType: !Ref stepScalingMetricAggregationType
-      PolicyName: !Sub "${project}-${env}-freeMemScaleInStepScalingPolicy"
+      PolicyName: !Sub "${project}-${env}-${app}-freeMemScaleInStepScalingPolicy"
       PolicyType: !Ref asgPolicyType
       StepAdjustments:
         - MetricIntervalLowerBound: !Ref freeMemScaleInMetricIntervalLowerBound
           ScalingAdjustment: !Ref freeMemScaleInAdjustment
-  
   freeMemScaleOutStepScalingPolicy:
     Type: AWS::AutoScaling::ScalingPolicy
     Properties:
       AdjustmentType: !Ref stepScalingAdjustmentType
       AutoScalingGroupName: !Ref autoScalingGroup
       MetricAggregationType: !Ref stepScalingMetricAggregationType
-      PolicyName: !Sub "${project}-${env}-freeMemScaleOutStepScalingPolicy"
+      PolicyName: !Sub "${project}-${env}-${app}-freeMemScaleOutStepScalingPolicy"
       PolicyType: !Ref asgPolicyType
       StepAdjustments:
         - MetricIntervalUpperBound: !Ref freeMemScaleOutMetricIntervalUpperBound
           ScalingAdjustment: !Ref freeMemScaleOutAdjustment
-
 Outputs:
   autoscalingLaunchTemplateId:
     Value: !Ref autoscalingLaunchTemplate
     Export:
-      Name: !Sub "${project}-${env}-autoscalingLaunchTemplateId-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-autoscalingLaunchTemplateId-${AWS::Region}"
   autoScalingGroupName:
     Value: !Ref autoScalingGroup
     Export:
-      Name: !Sub "${project}-${env}-autoScalingGroupName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-autoScalingGroupName-${AWS::Region}"
   cpuScaleInStepScalingPolicyArn:
     Value: !Ref cpuScaleInStepScalingPolicy
     Export:
-      Name: !Sub "${project}-${env}-cpuScaleInStepScalingPolicyArn-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-cpuScaleInStepScalingPolicyArn-${AWS::Region}"
   cpuScaleOutStepScalingPolicyArn:
     Value: !Ref cpuScaleOutStepScalingPolicy
     Export:
-      Name: !Sub "${project}-${env}-cpuScaleOutStepScalingPolicyArn-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-cpuScaleOutStepScalingPolicyArn-${AWS::Region}"
   freeMemScaleInStepScalingPolicyArn:
     Value: !Ref freeMemScaleInStepScalingPolicy
     Export:
-      Name: !Sub "${project}-${env}-freeMemScaleInStepScalingPolicyArn-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-freeMemScaleInStepScalingPolicyArn-${AWS::Region}"
   freeMemScaleOutStepScalingPolicyArn:
     Value: !Ref freeMemScaleOutStepScalingPolicy
     Export:
-      Name: !Sub "${project}-${env}-freeMemScaleOutStepScalingPolicyArn-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-freeMemScaleOutStepScalingPolicyArn-${AWS::Region}"

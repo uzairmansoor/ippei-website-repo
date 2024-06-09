@@ -9,6 +9,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description:  Environment Name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   newBackupVault:
     Type: String
     Default: true
@@ -68,13 +72,13 @@ Resources:
     Type: AWS::Backup::BackupVault
     Condition: createNewVault
     Properties:
-      BackupVaultName: !Sub "${project}-${env}-${backupVaultName}-${AWS::Region}"
+      BackupVaultName: !Sub "${project}-${env}-${app}-${backupVaultName}-${AWS::Region}"
       
   backupPlan:
     Type: AWS::Backup::BackupPlan
     Properties:
       BackupPlan:
-        BackupPlanName: !Sub "${project}-${env}-${backupPlanName}-${AWS::Region}"
+        BackupPlanName: !Sub "${project}-${env}-${app}-${backupPlanName}-${AWS::Region}"
         BackupPlanRule:
           - RuleName: !Ref backupPolicy
             ScheduleExpression: !Ref backukScheduleExpression 
@@ -100,7 +104,7 @@ Resources:
          -    
            ConditionType: "STRINGEQUALS"    
            ConditionKey: Name
-           ConditionValue: !Sub "${project}-${env}-${awsResource}-${AWS::Region}"
+           ConditionValue: !Sub "${project}-${env}-${app}-${awsResource}-${AWS::Region}"
           
 Outputs:
   backupPlan:

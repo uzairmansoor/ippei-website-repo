@@ -11,6 +11,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description:  Environment name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   lowEc2DiskUtilizationAlarmName:
     Type: String
     Description:  Name of low EC2 custom disk space utilization cloudwatch alarm
@@ -114,7 +118,7 @@ Resources:
   lowEc2DiskUtilizationAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub "${project}-${env}-${lowEc2DiskUtilizationAlarmName}-${AWS::Region}"
+      AlarmName: !Sub "${project}-${env}-${app}-${lowEc2DiskUtilizationAlarmName}-${AWS::Region}"
       AlarmDescription: !Sub "Trigger alarm when ${project} ${env} EC2 disk utilization is greater than ${lowDiskUtilizationThresholdValue}"
       MetricName: !Ref diskUtilizationMetricName
       Namespace: !Ref customMetricsNamespace
@@ -138,7 +142,7 @@ Resources:
   mediumEc2DiskUtilizationAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub "${project}-${env}-${mediumEc2DiskUtilizationAlarmName}-${AWS::Region}"
+      AlarmName: !Sub "${project}-${env}-${app}-${mediumEc2DiskUtilizationAlarmName}-${AWS::Region}"
       AlarmDescription: !Sub "Trigger alarm when ${project} ${env} EC2 disk utilization is greater than ${mediumDiskUtilizationThresholdValue}"
       MetricName: !Ref diskUtilizationMetricName
       Namespace: !Ref customMetricsNamespace
@@ -162,7 +166,7 @@ Resources:
   highEc2DiskUtilizationAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub "${project}-${env}-${highEc2DiskUtilizationAlarmName}-${AWS::Region}"
+      AlarmName: !Sub "${project}-${env}-${app}-${highEc2DiskUtilizationAlarmName}-${AWS::Region}"
       AlarmDescription: !Sub "Trigger alarm when ${project} ${env} EC2 disk utilization is greater than ${highDiskUtilizationThresholdValue}"
       MetricName: !Ref diskUtilizationMetricName
       Namespace: !Ref customMetricsNamespace
@@ -186,7 +190,7 @@ Resources:
   lowEc2FreeMemoryAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub "${project}-${env}-${lowEc2FreeMemoryAlarmName}-${AWS::Region}"
+      AlarmName: !Sub "${project}-${env}-${app}-${lowEc2FreeMemoryAlarmName}-${AWS::Region}"
       AlarmDescription: !Sub "Trigger alarm when ${project} ${env} EC2 free memory is greater than ${lowfreeMemoryThresholdValue}"
       MetricName: !Ref freeMemoryMetricName
       Namespace: !Ref cloudWebCustomMetricsNamespace
@@ -204,7 +208,7 @@ Resources:
   mediumEc2FreeMemoryAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub "${project}-${env}-${mediumEc2FreeMemoryAlarmName}-${AWS::Region}"
+      AlarmName: !Sub "${project}-${env}-${app}-${mediumEc2FreeMemoryAlarmName}-${AWS::Region}"
       AlarmDescription: !Sub "Trigger alarm when ${project} ${env} EC2 free memory is greater than ${mediumfreeMemoryThresholdValue}"
       MetricName: !Ref freeMemoryMetricName
       Namespace: !Ref cloudWebCustomMetricsNamespace
@@ -223,7 +227,7 @@ Resources:
   highEc2FreeMemoryAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub "${project}-${env}-${highEc2FreeMemoryAlarmName}-${AWS::Region}"
+      AlarmName: !Sub "${project}-${env}-${app}-${highEc2FreeMemoryAlarmName}-${AWS::Region}"
       AlarmDescription: !Sub "Trigger alarm when ${project} ${env} EC2 free memory is greater than ${highfreeMemoryThresholdValue}"
       MetricName: !Ref freeMemoryMetricName
       Namespace: !Ref cloudWebCustomMetricsNamespace
@@ -241,7 +245,7 @@ Resources:
   ec2FreeMemScaleInAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub "${project}-${env}-${ec2FreeMemScaleInAlarmName}-${AWS::Region}"
+      AlarmName: !Sub "${project}-${env}-${app}-${ec2FreeMemScaleInAlarmName}-${AWS::Region}"
       AlarmDescription: !Sub "Trigger alarm when ${project} ${env} EC2 free memory is greater than ${ec2FreeMemScaleInThresholdValue}"
       MetricName: !Ref freeMemoryMetricName
       Namespace: !Ref cloudWebCustomMetricsNamespace
@@ -261,28 +265,28 @@ Outputs:
   lowEc2DiskUtilizationAlarm:
     Value: !Ref lowEc2DiskUtilizationAlarm
     Export:
-      Name: !Sub "${project}-${env}-lowEc2DiskUtilizationAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-lowEc2DiskUtilizationAlarmName-${AWS::Region}"
   mediumEc2DiskUtilizationAlarm:
     Value: !Ref mediumEc2DiskUtilizationAlarm
     Export:
-      Name: !Sub "${project}-${env}-mediumEc2DiskUtilizationAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-mediumEc2DiskUtilizationAlarmName-${AWS::Region}"
   highEc2DiskUtilizationAlarm:
     Value: !Ref highEc2DiskUtilizationAlarm
     Export:
-      Name: !Sub "${project}-${env}-highEc2DiskUtilizationAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-highEc2DiskUtilizationAlarmName-${AWS::Region}"
   lowEc2FreeMemoryAlarm:
     Value: !Ref lowEc2FreeMemoryAlarm
     Export:
-      Name: !Sub "${project}-${env}-lowEc2FreeMemoryAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-lowEc2FreeMemoryAlarmName-${AWS::Region}"
   mediumEc2FreeMemoryAlarm:
     Value: !Ref mediumEc2FreeMemoryAlarm
     Export:
-      Name: !Sub "${project}-${env}-mediumEc2FreeMemoryAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-mediumEc2FreeMemoryAlarmName-${AWS::Region}"
   highEc2FreeMemoryAlarm:
     Value: !Ref highEc2FreeMemoryAlarm
     Export:
-      Name: !Sub "${project}-${env}-highEc2FreeMemoryAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-highEc2FreeMemoryAlarmName-${AWS::Region}"
   ec2FreeMemScaleInAlarm:
     Value: !Ref ec2FreeMemScaleInAlarm
     Export:
-      Name: !Sub "${project}-${env}-ec2FreeMemScaleInAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-ec2FreeMemScaleInAlarmName-${AWS::Region}"

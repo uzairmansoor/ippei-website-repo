@@ -10,6 +10,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description: Environment name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   s3ArtifactPath:
     Type: String
     Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
@@ -25,7 +29,7 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
-        wafWebAclName: !Sub "${project}-${env}-wafWebAcl-${AWS::Region}"
+        wafWebAclName: !Sub "${project}-${env}-${app}-wafWebAcl-${AWS::Region}"
         wafWebAclDescription: "Web ACL for Application Load Balancer"
         wafWebAclScope: "REGIONAL"
         wafEnableSqlInjectionRule: true
@@ -44,4 +48,4 @@ Outputs:
   wafWebAcl:
     Value: !Ref wafWebAcl
     Export: 
-      Name: !Sub "${project}-${env}-wafStack-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-wafStack-${AWS::Region}"

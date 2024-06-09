@@ -9,6 +9,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description:  Environment Name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   imageId:
     Type: String
     Default: ami-04ddc481cf25ffc1b
@@ -59,7 +63,7 @@ Resources:
       KeyName: !Ref keyPairName
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-${serverName}-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-${serverName}-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
@@ -69,4 +73,4 @@ Outputs:
   ec2Instance:
     Value: !Ref ec2Instance
     Export:
-      Name: !Sub "${project}-${env}-${serverName}-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-${serverName}-${AWS::Region}"

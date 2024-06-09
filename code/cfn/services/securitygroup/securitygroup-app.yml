@@ -9,6 +9,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description:  Environment Name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   vpcId:
     Type: String
     Description: ID of the VPC for the security group
@@ -41,33 +45,34 @@ Parameters:
   netsolCidrIp:
     Type: String
     Description: CIDR IP of netsol domain
-
 Resources:
-  sgBastionHost:
+  sgEc2ConnectEndpoint:
     Type: AWS::EC2::SecurityGroup
     Properties:
       VpcId: !Ref vpcId
       GroupDescription: Security group to allow traffic on TCP port 22
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-sgBastionHost-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-sgEc2ConnectEndpoint-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
-          Value: !Ref env 
-  sgBastionHostSShIngress:
+          Value: !Ref env
+        - Key: app
+          Value: !Ref app 
+  sgEc2ConnectEndpointSShIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
-      GroupId: !Ref sgBastionHost
+      GroupId: !Ref sgEc2ConnectEndpoint
       Description: Allow SSh traffic
       IpProtocol: tcp
       FromPort: !Ref sgSshPort
       ToPort: !Ref sgSshPort
       CidrIp: !Ref netsolCidrIp
-  sgBastionHostEgress:
+  sgEc2ConnectEndpointEgress:
     Type: AWS::EC2::SecurityGroupEgress
     Properties:
-      GroupId: !Ref sgBastionHost
+      GroupId: !Ref sgEc2ConnectEndpoint
       Description: Allow all traffic
       IpProtocol: !Ref sgAllowAllEgressProtocol
       CidrIp: !Ref sgInternetTrafficEgressCidr
@@ -79,11 +84,13 @@ Resources:
       VpcId: !Ref vpcId
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-sgPublicAlb-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-sgPublicAlb-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
           Value: !Ref env
+        - Key: app
+          Value: !Ref app
   sgPublicAlbHttpsIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
@@ -119,11 +126,13 @@ Resources:
       GroupDescription: Security group to allow traffic on TCP port 80, 443
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-sgEc2Web-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-sgEc2Web-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
           Value: !Ref env
+        - Key: app
+          Value: !Ref app
   sgEc2HttpsIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
@@ -150,7 +159,7 @@ Resources:
       IpProtocol: tcp
       FromPort: !Ref sgSshPort
       ToPort: !Ref sgSshPort
-      SourceSecurityGroupId: !Ref sgBastionHost
+      SourceSecurityGroupId: !Ref sgEc2ConnectEndpoint
   sgEc2DbIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
@@ -174,11 +183,13 @@ Resources:
       GroupDescription: Security group to allow traffic on TCP port 3306
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-sgRds-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-sgRds-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
           Value: !Ref env
+        - Key: app
+          Value: !Ref app
   sgRdsDbIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
@@ -197,19 +208,19 @@ Resources:
       CidrIp: !Ref sgInternetTrafficEgressCidr
   
 Outputs:
-  sgBastionHost:
-    Value: !Ref sgBastionHost
+  sgEc2ConnectEndpoint:
+    Value: !Ref sgEc2ConnectEndpoint
     Export:
-      Name: !Sub "${project}-${env}-sgBastionHost-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-sgEc2ConnectEndpoint-${AWS::Region}"
   sgRds:
     Value: !Ref sgRds
     Export:
-      Name: !Sub "${project}-${env}-sgRds-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-sgRds-${AWS::Region}"
   sgPublicAlb:
     Value: !Ref sgPublicAlb
     Export:
-      Name: !Sub "${project}-${env}-sgPublicAlb-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-sgPublicAlb-${AWS::Region}"
   sgEc2Web:
     Value: !Ref sgEc2Web
     Export:
-      Name: !Sub "${project}-${env}-sgEc2Web-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-sgEc2Web-${AWS::Region}"

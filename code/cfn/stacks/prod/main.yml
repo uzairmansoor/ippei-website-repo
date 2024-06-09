@@ -3,13 +3,17 @@ Description: Driver template to deploy the vpc, security groups, load balancer, 
 Parameters:
   project:
     Type: String
-    Default: cloudweb
+    Default: ippei
     Description:  Project Name
   env:
     Type: String
     Default: prod
     AllowedValues: [prod, dev, qa, stag]
     Description:  Environment Name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   dBUsername:
     Type: String
     NoEcho: true
@@ -20,8 +24,8 @@ Parameters:
     Description: Password for database access
   s3ArtifactPath:
     Type: String
-    Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
-    Description: "Artifact bucket path"
+    Default: "https://ippei-prod-app-us-east-1-203352749099.s3.amazonaws.com/code/cfn/services"
+    Description: "Artifacts bucket path"
 
 Resources:
   vpc:
@@ -31,13 +35,14 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
-        vpcCidr: 10.0.0.0/16
-        publicSubnet1Cidr: 10.0.1.0/24
-        publicSubnet2Cidr: 10.0.2.0/24
-        privateSubnet1Cidr: 10.0.3.0/24
-        privateSubnet2Cidr: 10.0.4.0/24
-        protectedSubnet1Cidr: 10.0.36.0/24
-        protectedSubnet2Cidr: 10.0.37.0/24
+        app: !Ref app
+        vpcCidr: 10.20.0.0/16
+        publicSubnet1Cidr: 10.20.1.0/24
+        publicSubnet2Cidr: 10.20.2.0/24
+        privateSubnet1Cidr: 10.20.3.0/24
+        privateSubnet2Cidr: 10.20.4.0/24
+        protectedSubnet1Cidr: 10.20.36.0/24
+        protectedSubnet2Cidr: 10.20.37.0/24
         vpcDestinationCidrBlockPublicRoute: 0.0.0.0/0
         vpcDestinationCidrBlockPrivateRoute: 0.0.0.0/0
         vpcDestinationCidrBlockProtectedRoute: 0.0.0.0/0
@@ -45,12 +50,11 @@ Resources:
         vpcNaclPublicOutboundCidr: 0.0.0.0/0
         vpcNaclPrivateInboundCidr: 0.0.0.0/0
         vpcNaclPrivateOutboundCidr: 0.0.0.0/0
-        vpcNaclProtectedInboundCidr: 10.0.0.0/16
+        vpcNaclProtectedInboundCidr: 10.20.0.0/16
         vpcNaclProtectedOutboundCidr: 0.0.0.0/0
         publicIPActive: True
         vpcDnsEnabled: True
         vpcDnsSupport: True
-
   securityGroup:
     Type: AWS::CloudFormation::Stack
     DependsOn:
@@ -60,6 +64,7 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
+        app: !Ref app
         vpcId: !GetAtt vpc.Outputs.vpcId
         sgInternetTrafficIngressCidr: 0.0.0.0/0
         sgInternetTrafficEgressCidr: 0.0.0.0/0
@@ -68,9 +73,41 @@ Resources:
         sgHttpPort: 80
         sgRdsPort: 3306
         sgAllowAllEgressProtocol: -1
-        netsolCidrIp: 45.64.183.177/32
-  
-  cloudWebApplicationLoadBalancer:
+        netsolCidrIp: 0.0.0.0/0
+  ec2InstanceConnectEndpoint:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - vpc
+      - securityGroup
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/ec2/ec2Endpoint-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        app: !Ref app
+        ec2EndpointClientToken: ec2InstanceConnectEndpoint # A unique, case-sensitive identifier to guarantee the idempotency of the request
+        ec2EndpointPreserveClientIp: True
+        ec2EndpointSg: !GetAtt securityGroup.Outputs.sgEc2ConnectEndpoint
+        ec2EndpointSubnetId: !GetAtt vpc.Outputs.privateSubnet1
+  s3AlbAccessLogBucket:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/s3/s3-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        app: alb-logs
+        s3BucketAccessControl: Private
+        s3VersioningStatus: Enabled
+        s3ObjectOwnership: BucketOwnerPreferred
+        sseAlgorithm: AES256
+        indexDocument: index.html
+        errorDocument: error.html
+        enableWebsiteConfiguration: no
+        enableCfWritePolicy: no
+        enableS3BucketPolicy: no 
+        enableAlbBucketPolicy: yes
+  applicationLoadBalancer:
     Type: AWS::CloudFormation::Stack
     DependsOn:
       - vpc
@@ -81,15 +118,10 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
-        lbHttpPort: 80
-        lbHttpsPort: 443
-        appCode: 200-499
-        statusCode: HTTP_301
+        app: !Ref app
         vpcId: !GetAtt vpc.Outputs.vpcId
-        lbActionType: forward
-        lbTargetType: instance
-        lbSubnetIdA: !GetAtt vpc.Outputs.publicSubnet1
         lbSecurityGroup: !GetAtt securityGroup.Outputs.sgPublicAlb
+        lbSubnetIdA: !GetAtt vpc.Outputs.publicSubnet1
         lbSubnetIdB: !GetAtt vpc.Outputs.publicSubnet2
         loadBalancerName: !Sub "${env}loadBalancer"
         loadBalancerScheme: internet-facing
@@ -97,42 +129,22 @@ Resources:
         healthCheckTimeoutSeconds: 15
         healthyThresholdCount: 5
         unHealthyThresholdCount: 3
-        ipAddressType: ipv4
         loadBalancerMethod: round_robin
-        acmCertificateIdentifier: ebcca23e-3406-488a-be5d-ac0050acfbc6
+        lbActionType: forward
+        lbHttpPort: 80
+        ipAddressType: ipv4
+        lbHttpsPort: 443
+        appCode: 200-499
+        lbTargetType: instance
+        statusCode: HTTP_301
+        acmCertificateIdentifier: e7536a34-840e-43e1-8539-ad15a7183f47
         loadBalancerType: application
         lbHttpsListenerSslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
         lbHttpsProtocol: HTTPS
         lbHttpProtocol: HTTP
-        enableAccessLogs: true
+        enableAccessLogs: True
         s3BucketNameForAccessLogs: !GetAtt s3AlbAccessLogBucket.Outputs.s3Bucket
-        prefixOfS3BucketForAccessLogs: !Sub "${env}AlbAccessLogs"
-
-  s3ArtifactsBucket:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: !Sub "${s3ArtifactPath}/s3/s3-app.yml"
-      Parameters:
-        project: !Ref project
-        env: !Ref env
-        s3BucketName: !Sub "${project}-${env}-artifacts-${AWS::Region}-${AWS::AccountId}"
-        s3BucketAccessControl: Private
-        s3VersioningStatus: Enabled
-        websiteUrl: https://netsolcloudservices.com
-        devWebsiteUrl: https://dev.netsolcloudservices.com
-        # stagWebsiteUrl: https://stag.netsolcloudservices.com
-        linkedinUrl: https://www.linkedin.com
-        # keapUrl: https://keap.app
-        s3ObjectOwnership: BucketOwnerPreferred
-        sseAlgorithm: AES256
-        indexDocument: index.html
-        errorDocument: error.html
-        enableWebsiteConfiguration: no
-        enableCfWritePolicy: no
-        enableS3BucketPolicy: yes
-        enableS3BucketPolicyForMaintBucket: no
-        enableAlbBucketPolicy: no
-  
+        prefixOfS3BucketForAccessLogs: alb-logs
   s3CfAccessLogBucket:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -140,53 +152,30 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
-        s3BucketName: !Sub "${project}-${env}-cf-logs-${AWS::Region}-${AWS::AccountId}"
+        app: cf-logs
         s3BucketAccessControl: Private
         s3VersioningStatus: Enabled
-        websiteUrl: https://netsolcloudservices.com
-        devWebsiteUrl: https://dev.netsolcloudservices.com
-        # stagWebsiteUrl: https://stag.netsolcloudservices.com
-        linkedinUrl: https://www.linkedin.com
-        # keapUrl: https://keap.app
-        s3ObjectOwnership: BucketOwnerPreferred
-        sseAlgorithm: AES256
-        indexDocument: index.html
-        errorDocument: error.html
-        enableWebsiteConfiguration: no
-        enableCfWritePolicy: yes
-        enableS3BucketPolicy: no
-        enableS3BucketPolicyForMaintBucket: no
-        enableAlbBucketPolicy: no
-
-  s3AlbAccessLogBucket:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: !Sub "${s3ArtifactPath}/s3/s3-app.yml"
-      Parameters:
-        project: !Ref project
-        env: !Ref env
-        s3BucketName: !Sub "${project}-${env}-alb-accesslogs-${AWS::Region}-${AWS::AccountId}"
-        s3BucketAccessControl: Private
-        s3VersioningStatus: Enabled
-        websiteUrl: https://dev.netsolcloudservices.com
-        # stagWebsiteUrl: https://stag.netsolcloudservices.com
-        devWebsiteUrl: https://dev.netsolcloudservices.com
-        linkedinUrl: https://www.linkedin.com
-        # keapUrl: https://keap.app
         s3ObjectOwnership: BucketOwnerPreferred
         sseAlgorithm: AES256
         indexDocument: index.html
         errorDocument: error.html
         enableWebsiteConfiguration: no
         enableCfWritePolicy: no
-        enableS3BucketPolicy: no
-        enableS3BucketPolicyForMaintBucket: no
+        enableS3BucketPolicy: no 
         enableAlbBucketPolicy: yes
-
+  ssmParameterStore:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/ssm/ssmParameterStore/ssmParameterStore-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        app: !Ref app
+        amiId: ami-0e745401bedef08c6 #ami-03bf99b4c6465618f
   iamRoles:
     Type: AWS::CloudFormation::Stack
     DependsOn:
-      - s3ArtifactsBucket
+      # - s3ArtifactsBucket
       - freeMemSsmDocument
       - ssmParameterStore
     Properties:
@@ -194,19 +183,19 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
-        s3ArtifactsBucketArn: !GetAtt s3ArtifactsBucket.Outputs.s3BucketArn
+        app: !Ref app
+        # s3ArtifactsBucketArn: !GetAtt s3ArtifactsBucket.Outputs.s3BucketArn
         instanceIdsParamStoreName: !GetAtt ssmParameterStore.Outputs.instanceIdsParamStoreName
-        dbName: !Sub "${project}-${env}-db-${AWS::Region}"
-        asgName: !Sub "${project}-${env}-AutoScalingGroup"
+        dbName: !Sub "${project}-${env}-${app}-db-${AWS::Region}"
+        asgName: !Sub "${project}-${env}-${app}-AutoScalingGroup"
         freeMemSsmDocumentName: !GetAtt freeMemSsmDocument.Outputs.freeMemSsmDocumentName
         amiIdParamStoreName: !GetAtt ssmParameterStore.Outputs.amiIdParamStoreName
-  
   ec2Autoscaling:
     Type: AWS::CloudFormation::Stack
     DependsOn:
       - vpc
       - securityGroup
-      - cloudWebApplicationLoadBalancer
+      - applicationLoadBalancer
       - iamRoles
       - ssmParameterStore
     Properties:
@@ -214,20 +203,21 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
+        app: !Ref app
         launchTemplateEc2ImageId: !GetAtt ssmParameterStore.Outputs.amiIdParamStoreValue
-        ec2InstanceType: t2.medium
-        keyPairName: !Sub "${project}-${env}-${AWS::Region}-${AWS::AccountId}"
-        launchTemplateName: !Sub "${project}-${env}-asgLaunchTemplate-${AWS::Region}"
-        autoScalingGroupName: !Sub "${project}-${env}-AutoScalingGroup-${AWS::Region}"
-        privateSubnet1Id: !GetAtt vpc.Outputs.privateSubnet1
-        privateSubnet2Id: !GetAtt vpc.Outputs.privateSubnet2
+        ec2InstanceType: t3.medium
+        keyPairName: !Sub "${project}-${env}-${app}-${AWS::Region}-${AWS::AccountId}"
+        launchTemplateName: !Sub "${project}-${env}-${app}-asgLaunchTemplate"
+        autoScalingGroupName: !Sub "${project}-${env}-${app}-AutoScalingGroup"
+        privateSubnet1Id: !GetAtt vpc.Outputs.publicSubnet1
+        privateSubnet2Id: !GetAtt vpc.Outputs.publicSubnet2
         autoScalingDesiredCapacity: 1
         autoScalingMaxSize: 2
         autoScalingMinSize: 1
         sgEc2Web: !GetAtt securityGroup.Outputs.sgEc2Web
-        ebsVolumeSize: 30
+        ebsVolumeSize: 200
         ebsVolumeType: gp3
-        targetGroupArn: !GetAtt cloudWebApplicationLoadBalancer.Outputs.lbTargetGroupArn
+        targetGroupArn: !GetAtt applicationLoadBalancer.Outputs.lbTargetGroupArn
         ec2InstanceProfileName: !GetAtt iamRoles.Outputs.ec2InstanceProfileName
         lifecycleHookDefaultResult: CONTINUE
         asgLifecycleTransition: autoscaling:EC2_INSTANCE_LAUNCHING
@@ -246,72 +236,51 @@ Resources:
         detailedMonitoring: true
         memUtilSSMParamStoreName: !GetAtt ssmParameterStore.Outputs.memUtilSSMParamStoreName
         diskUtilSSMParamStoreName: !GetAtt ssmParameterStore.Outputs.diskUtilSSMParamStoreName
-        ssmAssociationName: !Sub "${project}-${env}-freeMem-${AWS::Region}"
-        regionName: us-east-1
-  
-  jumpServer:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: !Sub "${s3ArtifactPath}/ec2/ec2-app.yml"
-      Parameters:
-        project: !Ref project
-        env: !Ref env
-        serverName: jumpServer 
-        keyPairName: !Sub "${project}-${env}-${AWS::Region}-${AWS::AccountId}"
-        ec2SShSecurityGroup: !GetAtt securityGroup.Outputs.sgBastionHost
-        ec2SubnetId: !GetAtt vpc.Outputs.publicSubnet1
-        imageId: ami-053b0d53c279acc90
-        instanceType: t2.micro
-        ebsVolumeSize: 20
-        ebsVolumeType: gp3
-        ebsMappingDevineName: /dev/xvda
-  
+        ssmAssociationName: !Sub "${project}-${env}-${app}-freeMem-${AWS::Region}"
+        regionName: !Sub ${AWS::Region}
   cloudFrontDistribution:
     Type: AWS::CloudFormation::Stack
     DependsOn:
-      - cloudWebApplicationLoadBalancer
+      - applicationLoadBalancer
       - s3CfAccessLogBucket
     Properties:
       TemplateURL: !Sub "${s3ArtifactPath}/cloudfront/cloudfront-app.yml"
       Parameters:
         project: !Ref project
         env: !Ref env
-        cfDistributionStatus: true
-        defaultTTL:  86400
-        maxTTL: 259300
-        minTTL:  86400
-        targetDns: !GetAtt cloudWebApplicationLoadBalancer.Outputs.lbDnsName
-        targetOriginId: !Sub "${env}LoadBalancerOrigin"
+        app: !Ref app
+        targetDns: !GetAtt applicationLoadBalancer.Outputs.lbDnsName
         viewerProtocolPolicy: redirect-to-https
         originProtocolPolicy: https-only
-        acmCertificateIdentifier: ebcca23e-3406-488a-be5d-ac0050acfbc6
+        cfDistributionStatus: true
+        targetOriginId: !Sub "${env}-LoadBalancerOrigin"
+        defaultTTL: 86400
+        maxTTL: 259300
+        minTTL: 86400
+        acmCertificateIdentifier: e7536a34-840e-43e1-8539-ad15a7183f47
         cfHttpsPort: 443
         cfOriginSSLProtocols: TLSv1.2
-        cfAlias: netsolcloudservices.com
+        cfAlias: dev.ippei.com
+        # cfAlias2: .goldirahedge.com
+        # cfAlias3: *.goldirahedge.com
         cfOriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
         cfResponseHeadersPolicyId: 67f7725c-6f97-4210-82d7-5512b31e9d03
         cfHttpVersion: http2
         cfPriceClass: PriceClass_100
         acmCertificateProtocolVersion: TLSv1.2_2021
         acmCertificateSslSupportMethod: sni-only
-        cfCachePolicyConfigComment: TTL for cache in cloudfront with ALB as an origin
-        cfCachePolicyConfigName: !Sub "${project}-${env}-cfCachePolicyWithAlbOrigin"
+        cfCachePolicyConfigComment: TTL for cache in cloudfront
+        cfCachePolicyConfigName: !Sub "${project}-${env}-${app}-CloudfrontCacheRequestPolicy"
         cfCachePolicyCookieBehavior: all
         cfCachePolicyHeaderBehavior: whitelist
         s3CfAccessLogBucketDomainName: !GetAtt s3CfAccessLogBucket.Outputs.s3BucketDomainName
         accessLogCookies: true
         accessLogPrefix: cloudFrontAccessLogs/
-        cfDistComment: !Sub ${env} cloudfront distribution
-        cfOriginAccessIdentityComment: ""
-        s3BucketDomainName: ""
-        s3OriginId: ""
-        s3PathPattern: /maintenance/*
-        isEnableCfLogging: yes
+        cfDistComment: CDN for ippei
+        cfEnableLogs: True
         cfCacheDisablePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
         cfEnableCacheRequestPolicy: no
-        cfDistExportName: cfDist1
-        enableAlias: yes
-  
+        # cfEnableAlias: yes
   rdsDbInstance:
     Type: AWS::CloudFormation::Stack
     DependsOn:
@@ -322,9 +291,10 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
+        app: !Ref app
         dBInstanceIdentifier: db
         dbName: ""
-        dBSnapshotIdentifier: !Sub "${project}-${env}-db-${AWS::Region}-base-snapshot-encrypted"
+        dBSnapshotIdentifier: ippei-web-prod-app-migration
         dBInstanceClass: db.t3.micro
         dbPrivateSubnet01: !GetAtt vpc.Outputs.protectedSubnet1
         dbPrivateSubnet02: !GetAtt vpc.Outputs.protectedSubnet2
@@ -333,21 +303,13 @@ Resources:
         dbPubliclyAccessible: false
         dbStorageType: gp2
         dbDeletionProtection: true
-        dBAllocatedStorage: 20
-        dBEngine: MySQL
+        dBAllocatedStorage: 100
+        dBEngine: MariaDB
         dBUsername: !Ref dBUsername
         dBPassword: !Ref dBPassword
-        kmsKeyId: 94fa6570-004d-4825-b6b2-728419d8b9dc
-  
-  ssmParameterStore:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: !Sub "${s3ArtifactPath}/ssm/ssmParameterStore/ssmParameterStore-app.yml"
-      Parameters:
-        project: !Ref project
-        env: !Ref env
-        amiId: ami-02c31204b7b0805f9
-  
+        dbEngineVersion: 10.4.32
+        dbPort: 3306
+        # kmsKeyId: 
   freeMemSsmDocument:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -355,6 +317,7 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
+        app: !Ref app
         ssmDocumentName: freeMem
         ssmDocumentFormat: JSON
         ssmDocumentType: Command
@@ -362,13 +325,12 @@ Resources:
         ssmSchemaVersion: "2.2"
         ssmDocumentDescription: "Execute Custom CloudWatch Metric Script"
         scriptFileName: !Sub "${env}_free_memory.sh"
-        awsRegion: us-east-1
+        awsRegion: !Sub ${AWS::Region}
         cwCustomNamespace: Custom-CloudWeb-Metrics
         freeMemoryMetricName: !Sub "${env}_free_mem_ec2"
         freeMemoryMetricUnit: Percent
-        autoScalingGroupName: !Sub "${project}-${env}-AutoScalingGroup-${AWS::Region}"
+        autoScalingGroupName: !Sub "${project}-${env}-${app}-AutoScalingGroup"
         ssmDocUpdateMethod: Replace
-  
   updateInstanceIdLambdaFunc:
     Type: AWS::CloudFormation::Stack
     DependsOn:
@@ -382,23 +344,23 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
-        lambdaFunctionName: !Sub "${project}-${env}-updateInstanceId-${AWS::Region}"
+        app: !Ref app
+        lambdaFunctionName: !Sub "${project}-${env}-${app}-updateInstanceId-${AWS::Region}"
         runtimeVersion: python3.10
         lambdaHandler: updateInstanceId.lambda_handler
         timeout: 30
         lambdaExecutionRoleArn: !GetAtt iamRoles.Outputs.lambdaRoleForUpdateInstanceIdFunctionArn
-        s3BucketName: !Sub "${project}-wordpress-${env}-${AWS::Region}-${AWS::AccountId}"
+        s3BucketName: !Sub "${project}-${env}-${app}-${AWS::Region}-${AWS::AccountId}"
         s3Key: code/lambda/updateInstanceId/updateInstanceId.zip
-        launchTemplateName: !Sub "${project}-${env}-LaunchTemplatetestASG"
-        instanceIdsParamStore: !Sub "${project}-${env}-instanceIdParamStore-${AWS::Region}"
-        asgName: !Sub "${project}-${env}-AutoScalingGroup"
-        scaleInPolicyName: !Sub "${project}-${env}-cpuScaleInStepScalingPolicy"
+        launchTemplateName: !Sub "${project}-${env}-${app}-asgLaunchTemplate"
+        instanceIdsParamStore: !Sub "${project}-${env}-${app}-instanceIdParamStore-${AWS::Region}"
+        asgName: !Sub "${project}-${env}-${app}-AutoScalingGroup"
+        scaleInPolicyName: !Sub "${project}-${env}-${app}-cpuScaleInStepScalingPolicy"
         freeMemScaleInStepScalingPolicyArn: !GetAtt ec2Autoscaling.Outputs.freeMemScaleInStepScalingPolicyArn
         freeMemScaleOutStepScalingPolicyArn: !GetAtt ec2Autoscaling.Outputs.freeMemScaleOutStepScalingPolicyArn
         snsTopicArn: !GetAtt snsTopicForCwAlarms.Outputs.snsTopicArn
         amiIdParamStoreName: !GetAtt ssmParameterStore.Outputs.amiIdParamStoreName
         dBInstanceName: !GetAtt rdsDbInstance.Outputs.dBInstanceIdentifier
-  
   createAmiLambdaFunc:
     Type: AWS::CloudFormation::Stack
     DependsOn:
@@ -412,23 +374,23 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
-        lambdaFunctionName: !Sub "${project}-${env}-createAmi-${AWS::Region}"
+        app: !Ref app
+        lambdaFunctionName: !Sub "${project}-${env}-${app}-createAmi-${AWS::Region}"
         runtimeVersion: python3.10
         lambdaHandler: createAmi.lambda_handler
         timeout: 30
         lambdaExecutionRoleArn: !GetAtt iamRoles.Outputs.lambdaRoleForCreateAmiFunctionArn
-        s3BucketName: !Sub "${project}-wordpress-${env}-${AWS::Region}-${AWS::AccountId}"
+        s3BucketName: !Sub "${project}-${env}-${app}-${AWS::Region}-${AWS::AccountId}"
         s3Key: code/lambda/createAmi/createAmi.zip
-        launchTemplateName: !Sub "${project}-${env}-asgLaunchTemplate-${AWS::Region}"
-        instanceIdsParamStore: !Sub "${project}-${env}-instanceIdParamStore-${AWS::Region}"
-        asgName: !Sub "${project}-${env}-AutoScalingGroup-${AWS::Region}"
-        scaleInPolicyName: !Sub "${project}-${env}-cpuScaleInStepScalingPolicy"
+        launchTemplateName: !Sub "${project}-${env}-${app}-asgLaunchTemplate"
+        instanceIdsParamStore: !Sub "${project}-${env}-${app}-instanceIdParamStore-${AWS::Region}"
+        asgName: !Sub "${project}-${env}-${app}-AutoScalingGroup"
+        scaleInPolicyName: !Sub "${project}-${env}-${app}-cpuScaleInStepScalingPolicy"
         freeMemScaleInStepScalingPolicyArn: !GetAtt ec2Autoscaling.Outputs.freeMemScaleInStepScalingPolicyArn
         freeMemScaleOutStepScalingPolicyArn: !GetAtt ec2Autoscaling.Outputs.freeMemScaleOutStepScalingPolicyArn
         snsTopicArn: !GetAtt snsTopicForCwAlarms.Outputs.snsTopicArn
         amiIdParamStoreName: !GetAtt ssmParameterStore.Outputs.amiIdParamStoreName
         dBInstanceName: !GetAtt rdsDbInstance.Outputs.dBInstanceIdentifier
-  
   updateAsgLaunchTemplateLambdaFunc:
     Type: AWS::CloudFormation::Stack
     DependsOn:
@@ -442,23 +404,23 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
-        lambdaFunctionName: !Sub "${project}-${env}-updateAsgLaunchTemplate-${AWS::Region}"
+        app: !Ref app
+        lambdaFunctionName: !Sub "${project}-${env}-${app}-updateAsgLaunchTemplate-${AWS::Region}"
         runtimeVersion: python3.10
         lambdaHandler: updateAsgLaunchTemplate.lambda_handler
         timeout: 30
         lambdaExecutionRoleArn: !GetAtt iamRoles.Outputs.lambdaRoleForAsgLaunchTemplateArn
-        s3BucketName: !Sub "${project}-wordpress-${env}-${AWS::Region}-${AWS::AccountId}"
+        s3BucketName: !Sub "${project}-${env}-${app}-${AWS::Region}-${AWS::AccountId}"
         s3Key: code/lambda/updateAsgLaunchTemplate/updateAsgLaunchTemplate.zip
-        launchTemplateName: !Sub "${project}-${env}-asgLaunchTemplate-${AWS::Region}"
-        instanceIdsParamStore: !Sub "${project}-${env}-instanceIdParamStore-${AWS::Region}"
-        asgName: !Sub "${project}-${env}-AutoScalingGroup-${AWS::Region}"
-        scaleInPolicyName: !Sub "${project}-${env}-cpuScaleInStepScalingPolicy"
+        launchTemplateName: !Sub "${project}-${env}-${app}-asgLaunchTemplate"
+        instanceIdsParamStore: !Sub "${project}-${env}-${app}-instanceIdParamStore-${AWS::Region}"
+        asgName: !Sub "${project}-${env}-${app}-AutoScalingGroup"
+        scaleInPolicyName: !Sub "${project}-${env}-${app}-cpuScaleInStepScalingPolicy"
         freeMemScaleInStepScalingPolicyArn: !GetAtt ec2Autoscaling.Outputs.freeMemScaleInStepScalingPolicyArn
         freeMemScaleOutStepScalingPolicyArn: !GetAtt ec2Autoscaling.Outputs.freeMemScaleOutStepScalingPolicyArn
         snsTopicArn: !GetAtt snsTopicForCwAlarms.Outputs.snsTopicArn
         amiIdParamStoreName: !GetAtt ssmParameterStore.Outputs.amiIdParamStoreName
         dBInstanceName: !GetAtt rdsDbInstance.Outputs.dBInstanceIdentifier
-  
   triggerScaleInAsgLambdaFunc:
     Type: AWS::CloudFormation::Stack
     DependsOn:
@@ -472,83 +434,43 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
-        lambdaFunctionName: !Sub "${project}-${env}-triggerScaleInAsg-${AWS::Region}"
+        app: !Ref app
+        lambdaFunctionName: !Sub "${project}-${env}-${app}-triggerScaleInAsg-${AWS::Region}"
         runtimeVersion: python3.10
         lambdaHandler: triggerScaleInAsg.lambda_handler
         timeout: 30
         lambdaExecutionRoleArn: !GetAtt iamRoles.Outputs.lambdaRoleForTriggerScaleInAsgFuncArn
-        s3BucketName: !Sub "${project}-wordpress-${env}-${AWS::Region}-${AWS::AccountId}"
+        s3BucketName: !Sub "${project}-${env}-${app}-${AWS::Region}-${AWS::AccountId}"
         s3Key: code/lambda/triggerScaleInAsg/triggerScaleInAsg.zip
-        launchTemplateName: !Sub "${project}-${env}-asgLaunchTemplate-${AWS::Region}"
-        instanceIdsParamStore: !Sub "${project}-${env}-instanceIdParamStore-${AWS::Region}"
-        asgName: !Sub "${project}-${env}-AutoScalingGroup-${AWS::Region}"
-        scaleInPolicyName: !Sub "${project}-${env}-cpuScaleInStepScalingPolicy"
+        launchTemplateName: !Sub "${project}-${env}-${app}-asgLaunchTemplate"
+        instanceIdsParamStore: !Sub "${project}-${env}-${app}-instanceIdParamStore-${AWS::Region}"
+        asgName: !Sub "${project}-${env}-${app}-AutoScalingGroup"
+        scaleInPolicyName: !Sub "${project}-${env}-${app}-cpuScaleInStepScalingPolicy"
         freeMemScaleInStepScalingPolicyArn: !GetAtt ec2Autoscaling.Outputs.freeMemScaleInStepScalingPolicyArn
         freeMemScaleOutStepScalingPolicyArn: !GetAtt ec2Autoscaling.Outputs.freeMemScaleOutStepScalingPolicyArn
         snsTopicArn: !GetAtt snsTopicForCwAlarms.Outputs.snsTopicArn
         amiIdParamStoreName: !GetAtt ssmParameterStore.Outputs.amiIdParamStoreName
         dBInstanceName: !GetAtt rdsDbInstance.Outputs.dBInstanceIdentifier
-  
-  rdsStartStopLambdaFunc:
+  snsTopicForCwAlarms:
     Type: AWS::CloudFormation::Stack
-    DependsOn:
-      - iamRoles
-      - ec2Autoscaling
-      - snsTopicForCwAlarms
-      - ssmParameterStore
-      - rdsDbInstance
     Properties:
-      TemplateURL: !Sub "${s3ArtifactPath}/lambdaFunction/lambdaFunction-app.yml"
+      TemplateURL: !Sub "${s3ArtifactPath}/sns/snsTopic/snsTopic-app.yml"
       Parameters:
         project: !Ref project
         env: !Ref env
-        lambdaFunctionName: !Sub "${project}-${env}-rdsStartStop-${AWS::Region}"
-        runtimeVersion: python3.10
-        lambdaHandler: rdsStartStop.lambda_handler
-        timeout: 30
-        lambdaExecutionRoleArn: !GetAtt iamRoles.Outputs.rdsStartStopIamRoleArn
-        s3BucketName: !Sub "${project}-wordpress-${env}-${AWS::Region}-${AWS::AccountId}"
-        s3Key: code/lambda/rdsStartStop/rdsStartStop.zip
-        launchTemplateName: !Sub "${project}-${env}-LaunchTemplateforASG"
-        instanceIdsParamStore: !Sub "${project}-${env}-instanceIdParamStore-${AWS::Region}"
-        asgName: !Sub "${project}-${env}-AutoScalingGroup"
-        scaleInPolicyName: !Sub "${project}-${env}-cpuScaleInStepScalingPolicy"
-        freeMemScaleInStepScalingPolicyArn: !GetAtt ec2Autoscaling.Outputs.freeMemScaleInStepScalingPolicyArn
-        freeMemScaleOutStepScalingPolicyArn: !GetAtt ec2Autoscaling.Outputs.freeMemScaleOutStepScalingPolicyArn
-        snsTopicArn: !GetAtt snsTopicForCwAlarms.Outputs.snsTopicArn
-        amiIdParamStoreName: !GetAtt ssmParameterStore.Outputs.amiIdParamStoreName
-        dBInstanceName: !GetAtt rdsDbInstance.Outputs.dBInstanceIdentifier
-  
-  ec2StartStopLambdaFunc:
+        app: !Ref app
+        snsTopicName: !Sub "${project}-${env}-${app}-cwAlarmNotification-${AWS::Region}"
+        snsDisplayName: !Sub "${project}-${env}-${app}-cwAlarmNotification-${AWS::Region}"
+  snsTopicForTriggerScaleInAsgLambdaFunc:
     Type: AWS::CloudFormation::Stack
-    DependsOn:
-      - iamRoles
-      - ec2Autoscaling
-      - snsTopicForCwAlarms
-      - ssmParameterStore
-      - rdsDbInstance
     Properties:
-      TemplateURL: !Sub "${s3ArtifactPath}/lambdaFunction/lambdaFunction-app.yml"
+      TemplateURL: !Sub "${s3ArtifactPath}/sns/snsTopic/snsTopic-app.yml"
       Parameters:
         project: !Ref project
         env: !Ref env
-        lambdaFunctionName: !Sub "${project}-${env}-ec2StartStop-${AWS::Region}"
-        runtimeVersion: python3.10
-        lambdaHandler: ec2StartStop.lambda_handler
-        timeout: 30
-        lambdaExecutionRoleArn: !GetAtt iamRoles.Outputs.ec2StartStopIamRoleArn
-        s3BucketName: !Sub "${project}-wordpress-${env}-${AWS::Region}-${AWS::AccountId}"
-        s3Key: code/lambda/ec2StartStop/ec2StartStop.zip
-        launchTemplateName: !Sub "${project}-${env}-LaunchTemplateforASG"
-        instanceIdsParamStore: !Sub "${project}-${env}-instanceIdParamStore-${AWS::Region}"
-        asgName: !Sub "${project}-${env}-AutoScalingGroup"
-        scaleInPolicyName: !Sub "${project}-${env}-cpuScaleInStepScalingPolicy"
-        freeMemScaleInStepScalingPolicyArn: !GetAtt ec2Autoscaling.Outputs.freeMemScaleInStepScalingPolicyArn
-        freeMemScaleOutStepScalingPolicyArn: !GetAtt ec2Autoscaling.Outputs.freeMemScaleOutStepScalingPolicyArn
-        snsTopicArn: !GetAtt snsTopicForCwAlarms.Outputs.snsTopicArn
-        amiIdParamStoreName: !GetAtt ssmParameterStore.Outputs.amiIdParamStoreName
-        dBInstanceName: !GetAtt rdsDbInstance.Outputs.dBInstanceIdentifier
-
+        app: !Ref app
+        snsTopicName: !Sub "${project}-${env}-${app}-scaleInAsgLambda-${AWS::Region}"
+        snsDisplayName: !Sub "${project}-${env}-${app}-scaleInAsgLambda-${AWS::Region}"
   cloudwatchEventRules:
     Type: AWS::CloudFormation::Stack
     DependsOn:
@@ -561,7 +483,8 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
-        autoScalingGroupName: !Sub "${project}-${env}-AutoScalingGroup-${AWS::Region}"
+        app: !Ref app
+        autoScalingGroupName: !Sub "${project}-${env}-${app}-AutoScalingGroup"
         updateInstanceIdLambdaFunctionArn: !GetAtt updateInstanceIdLambdaFunc.Outputs.lambdaFunctionArn
         updateInstanceIdCWEventRuleState: ENABLED
         eventPatternSource: aws.autoscaling
@@ -574,38 +497,15 @@ Resources:
         triggerScaleInAsgLambdaFuncName: !GetAtt triggerScaleInAsgLambdaFunc.Outputs.lambdaFunctionName
         snsTopicForTriggerScaleInAsgLambdaFuncArn: !GetAtt snsTopicForTriggerScaleInAsgLambdaFunc.Outputs.snsTopicArn
         startScheduleExpression: cron(0 6 * * ? *)
-        stopScheduleExpression: cron(0 15 * * ? *)
+        stopScheduleExpression: cron(2 15 * * ? *)
         startAction: start
         stopAction: stop
         cwStartEventRuleState: ENABLED
         cwStopEventRuleState: ENABLED
-        rdsStartStopLambdaFunctionArn: !GetAtt rdsStartStopLambdaFunc.Outputs.lambdaFunctionArn
-        ec2StartStopLambdaFunctionArn: !GetAtt ec2StartStopLambdaFunc.Outputs.lambdaFunctionArn
-        updateInstanceIdCwEventRuleName: !Sub '${project}-${env}-eventRuleTriggerUpdateInstanceId-${AWS::Region}'
-        ec2AmiStateChangeCwEventRuleName: !Sub '${project}-${env}-ec2AmiStateChangeCwEventRule-${AWS::Region}'
-  
-  snsTopicForCwAlarms:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: !Sub "${s3ArtifactPath}/sns/snsTopic/snsTopic-app.yml"
-      Parameters:
-        project: !Ref project
-        env: !Ref env
-        snsTopicName: !Sub "${project}-${env}-cwAlarmNotification-${AWS::Region}"
-        snsDisplayName: !Sub "${project}-${env}-cwAlarmNotification-${AWS::Region}"
-  
-  snsTopicForTriggerScaleInAsgLambdaFunc:
-    Type: AWS::CloudFormation::Stack
-    DependsOn:
-      - triggerScaleInAsgLambdaFunc
-    Properties:
-      TemplateURL: !Sub "${s3ArtifactPath}/sns/snsTopic/snsTopic-app.yml"
-      Parameters:
-        project: !Ref project
-        env: !Ref env
-        snsTopicName: !Sub "${project}-${env}-scaleInAsgLambda-${AWS::Region}"
-        snsDisplayName: !Sub "${project}-${env}-scaleInAsgLambda-${AWS::Region}"
-  
+        # rdsStartStopLambdaFunctionArn: !GetAtt rdsStartStopLambdaFunc.Outputs.lambdaFunctionArn
+        # ec2StartStopLambdaFunctionArn: !GetAtt ec2StartStopLambdaFunc.Outputs.lambdaFunctionArn
+        updateInstanceIdCwEventRuleName: !Sub '${project}-${env}-${app}-eventRuleTriggerUpdateInstanceId-${AWS::Region}'
+        ec2AmiStateChangeCwEventRuleName: !Sub '${project}-${env}-${app}-ec2AmiStateChangeCwEventRule-${AWS::Region}'
   snsSubscrip1ForCwAlarms:
     Type: AWS::CloudFormation::Stack
     DependsOn:
@@ -615,25 +515,11 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
-        endpoint: uzair.mansoor@netsoltech.com
+        app: !Ref app
+        endpoint: uzairmansoor200@gmail.com
         protocol: email
         snsTopicArn: !GetAtt snsTopicForCwAlarms.Outputs.snsTopicArn
         snsSubscripExportName: snsSubscrip1ForCwAlarms
-
-  snsSubscrip2ForCwAlarms:
-    Type: AWS::CloudFormation::Stack
-    DependsOn:
-      - snsTopicForCwAlarms
-    Properties:
-      TemplateURL: !Sub "${s3ArtifactPath}/sns/snsSubscription/snsSubscription-app.yml"
-      Parameters:
-        project: !Ref project
-        env: !Ref env
-        endpoint: adeel.imtiaz@netsoltech.com
-        protocol: email
-        snsTopicArn: !GetAtt snsTopicForCwAlarms.Outputs.snsTopicArn
-        snsSubscripExportName: snsSubscrip2ForCwAlarms
-
   snsSubscripForTriggerScaleInAsgLambdaFunc:
     Type: AWS::CloudFormation::Stack
     DependsOn:
@@ -644,11 +530,11 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
+        app: !Ref app
         endpoint: !GetAtt triggerScaleInAsgLambdaFunc.Outputs.lambdaFunctionArn
         protocol: lambda
         snsTopicArn: !GetAtt snsTopicForTriggerScaleInAsgLambdaFunc.Outputs.snsTopicArn
         snsSubscripExportName: snsSubscripForTriggerScaleInAsgLambdaFunc
-
   ec2CustomAlarms:
     Type: AWS::CloudFormation::Stack
     DependsOn:
@@ -660,6 +546,7 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
+        app: !Ref app
         lowEc2DiskUtilizationAlarmName: lowEc2DiskUtilizationAlarm
         mediumEc2DiskUtilizationAlarmName: mediumEc2DiskUtilizationAlarm
         highEc2DiskUtilizationAlarmName: highEc2DiskUtilizationAlarm
@@ -684,29 +571,29 @@ Resources:
         freeMemoryStatistic: Maximum
         ec2FreeMemScaleInAlarmName: ec2FreeMemScaleInAlarm
         lowEc2FreeMemoryAlarmName: lowEc2FreeMemoryAlarm
-        lowfreeMemoryThresholdValue: 60
+        lowfreeMemoryThresholdValue: 30
         mediumfreeMemoryThresholdValue: 20
         highfreeMemoryThresholdValue: 10
-        ec2FreeMemScaleInThresholdValue: 60
-        asgName: !Sub "${project}-${env}-AutoScalingGroup-${AWS::Region}"
+        ec2FreeMemScaleInThresholdValue: 70
+        asgName: !Sub "${project}-${env}-${app}-AutoScalingGroup"
         deviceName: xvda1
         fileSystemType: ext4
         mediumEc2FreeMemoryAlarmName: mediumEc2FreeMemoryAlarm
-  
   asgCloudWatchAlarm:
     Type: AWS::CloudFormation::Stack 
     DependsOn:
       - snsTopicForCwAlarms
-      - snsTopicForTriggerScaleInAsgLambdaFunc
       - ec2Autoscaling
+      - snsTopicForTriggerScaleInAsgLambdaFunc
     Properties:
       TemplateURL: !Sub "${s3ArtifactPath}/cw/alarms/asgAlarm-app.yml"
       Parameters:
         project: !Ref project
         env: !Ref env
-        lowCpuAlarmName: !Sub "${project}-${env}-asgLowCpuAlarm-${AWS::Region}"
-        mediumCpuAlarmName: !Sub "${project}-${env}-asgMediumCpuAlarm-${AWS::Region}"
-        highCpuAlarmName: !Sub "${project}-${env}-asgHighCpuAlarm-${AWS::Region}"
+        app: !Ref app
+        lowCpuAlarmName: !Sub "${project}-${env}-${app}-asgLowCpuAlarm-${AWS::Region}"
+        mediumCpuAlarmName: !Sub "${project}-${env}-${app}-asgMediumCpuAlarm-${AWS::Region}"
+        highCpuAlarmName: !Sub "${project}-${env}-${app}-asgHighCpuAlarm-${AWS::Region}"
         asgCpuScaleInAlarmName: cpuScaleInAlarm
         asgNamespace: AWS/EC2
         cpuMetricName: CPUUtilization
@@ -716,8 +603,8 @@ Resources:
         mediumCpuThresholdValue: 80
         highCpuThresholdValue: 90
         scaleInCpuThresholdValue: 50      
-        asgNetworkOutTrafficAlarmName: !Sub "${project}-${env}-asgNetworkOutTrafficAlarm-${AWS::Region}"
-        asgNetworkInTrafficAlarmName: !Sub "${project}-${env}-asgNetworkInTrafficAlarm-${AWS::Region}"
+        asgNetworkOutTrafficAlarmName: !Sub "${project}-${env}-${app}-asgNetworkOutTrafficAlarm-${AWS::Region}"
+        asgNetworkInTrafficAlarmName: !Sub "${project}-${env}-${app}-asgNetworkInTrafficAlarm-${AWS::Region}"
         asgNetworkInMetricName: NetworkIn
         asgNetworkOutMetricName: NetworkOut
         asgNetworkThresholdValue: 500586437
@@ -725,50 +612,49 @@ Resources:
         asgNetworkStatistic: Average
         systemStatusCheckMetricName: StatusCheckFailed
         statusCheckMetricName: StatusCheckFailed_Instance
-        systemStatusCheckEc2AlarmName: !Sub "${project}-${env}-systemStatusCheckEc2Alarm-${AWS::Region}"
-        statusCheckEc2AlarmName: !Sub "${project}-${env}-statusCheckEc2Alarm-${AWS::Region}"
+        systemStatusCheckEc2AlarmName: !Sub "${project}-${env}-${app}-systemStatusCheckEc2Alarm-${AWS::Region}"
+        statusCheckEc2AlarmName: !Sub "${project}-${env}-${app}-statusCheckEc2Alarm-${AWS::Region}"
         statusCheckStatistic: Sum
         statusCheckThresholdValue: 1
         statusCheckMetricUnit: Count
         snsTopicArn: !GetAtt snsTopicForCwAlarms.Outputs.snsTopicArn
-        asgName: !Sub "${project}-${env}-AutoScalingGroup-${AWS::Region}"
+        asgName: !Sub "${project}-${env}-${app}-AutoScalingGroup"
         asgStatisticPeriod: 60
         asgEvaluationPeriod: 3
         asgNetworkInStatisticPeriod: 900
         snsTopicForTriggerScaleInAsgLambdaFuncArn: !GetAtt snsTopicForTriggerScaleInAsgLambdaFunc.Outputs.snsTopicArn
         cpuScaleInStepScalingPolicyArn: !GetAtt ec2Autoscaling.Outputs.cpuScaleInStepScalingPolicyArn
         cpuScaleOutStepScalingPolicyArn: !GetAtt ec2Autoscaling.Outputs.cpuScaleOutStepScalingPolicyArn 
-  
   albCloudWatchAlarm:
     Type: AWS::CloudFormation::Stack
     DependsOn:
       - snsTopicForCwAlarms
-      - cloudWebApplicationLoadBalancer
+      - applicationLoadBalancer
     Properties:
       TemplateURL: !Sub "${s3ArtifactPath}/cw/alarms/albAlarm-app.yml"
       Parameters:
         project: !Ref project
         env: !Ref env
+        app: !Ref app
         alb4xxErrorsMetricName: HTTPCode_Target_4XX_Count
         albUnhealthyHostMetricName: UnHealthyHostCount
         alb5xxErrorsMetricName: HTTPCode_Target_5XX_Count
-        alb4xxErrorsAlarmName: !Sub "${project}-${env}-alb4xxErrorsAlarm-${AWS::Region}"
-        alb5xxErrorsAlarmName: !Sub "${project}-${env}-alb5xxErrorsAlarm-${AWS::Region}"
-        albUnhealthyHostAlarmName: !Sub "${project}-${env}-albUnhealthyHost-${AWS::Region}"
+        alb4xxErrorsAlarmName: !Sub "${project}-${env}-${app}-alb4xxErrorsAlarm-${AWS::Region}"
+        alb5xxErrorsAlarmName: !Sub "${project}-${env}-${app}-alb5xxErrorsAlarm-${AWS::Region}"
+        albUnhealthyHostAlarmName: !Sub "${project}-${env}-${app}-albUnhealthyHost-${AWS::Region}"
         albErrorsStatistic: Sum
         albMetricUnit: Count
         albThresholdValue: 0
         albUnhealthyHostStatistic: Minimum
         albNamespace: AWS/ApplicationELB
         snsTopicArn: !GetAtt snsTopicForCwAlarms.Outputs.snsTopicArn
-        loadBalancerName: !GetAtt cloudWebApplicationLoadBalancer.Outputs.lbFullName
-        targetGroupName: !GetAtt cloudWebApplicationLoadBalancer.Outputs.lbTargetGroupFullName
+        loadBalancerName: !GetAtt applicationLoadBalancer.Outputs.lbFullName
+        targetGroupName: !GetAtt applicationLoadBalancer.Outputs.lbTargetGroupFullName
         albStatisticPeriod: 30
         albEvaluationPeriods: 3
         alb4xxErrorsStatisticPeriod: 900
         alb4xxErrorsEvaluationPeriods: 20
         alb4xxErrorsThresholdValue: 80
-  
   cloudfrontCloudWatchAlarm:
     Type: AWS::CloudFormation::Stack
     DependsOn:
@@ -779,6 +665,7 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
+        app: !Ref app
         region: Global
         cloudfrontAlarmName: cfTotalErrorRateAlarm
         snsTopicArn: !GetAtt snsTopicForCwAlarms.Outputs.snsTopicArn
@@ -791,7 +678,6 @@ Resources:
         cloudfrontMetricUnit: Percent
         cloudfrontTotalErrorRateThreshold: 80
         region: Global
-  
   rdsCloudWatchAlarm:
     Type: AWS::CloudFormation::Stack
     DependsOn:
@@ -802,6 +688,7 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
+        app: !Ref app
         snsTopicArn: !GetAtt snsTopicForCwAlarms.Outputs.snsTopicArn
         dBInstanceName: !GetAtt rdsDbInstance.Outputs.dBInstanceIdentifier
         lowRdsStorageAlarmName: lowRdsStorageAlarm
@@ -825,16 +712,17 @@ Resources:
         rdsHighCpuUtilizationThreshold: 90
         rdsStatisticPeriod: 60
         rdsEvaluationPeriods: 3
-  
   rdsBackup:
     Type: AWS::CloudFormation::Stack
     DependsOn:
       - iamRoles
+      - rdsDbInstance
     Properties:
       TemplateURL: !Sub "${s3ArtifactPath}/backup/backup-app.yml"
       Parameters:
         project: !Ref project
         env: !Ref env
+        app: !Ref app
         newBackupVault: true
         backupVaultName: rds
         backupPlanName: rdsbackup
@@ -843,20 +731,21 @@ Resources:
         backupIamRoleArn: !GetAtt iamRoles.Outputs.backupIamRoleArn
         backupDeleteAfterDays: 7
         backupTargetRegion: us-west-1
-        backukScheduleExpression: cron(0 15 ? * * *)
+        backukScheduleExpression: cron(0 4 ? * * *)
         backupStartWindowMinutes: 60
         backupCompletionWindowMinutes: 120
         awsResource: DB
-
   ec2Backup:
     Type: AWS::CloudFormation::Stack
     DependsOn:
       - iamRoles
+      - rdsDbInstance
     Properties:
       TemplateURL: !Sub "${s3ArtifactPath}/backup/backup-app.yml"
       Parameters:
         project: !Ref project
         env: !Ref env
+        app: !Ref app
         newBackupVault: true
         backupVaultName: ec2
         backupPlanName: ec2backup
@@ -865,154 +754,116 @@ Resources:
         backupIamRoleArn: !GetAtt iamRoles.Outputs.backupIamRoleArn
         backupDeleteAfterDays: 7
         backupTargetRegion: us-west-1
-        backukScheduleExpression: cron(0 15 ? * * *)
+        backukScheduleExpression: cron(0 4 ? * * *)
         backupStartWindowMinutes: 60
         backupCompletionWindowMinutes: 120
         awsResource: ec2Instance
-  
-  wafWebAcl:
-    Type: AWS::CloudFormation::Stack
-    DependsOn:
-      - cloudWebApplicationLoadBalancer
-    Properties:
-      TemplateURL: !Sub "${s3ArtifactPath}/waf/waf-app.yml"
-      Parameters:
-        project: !Ref project
-        env: !Ref env
-        wafWebAclName: !Sub "${project}-${env}-wafWebAcl-${AWS::Region}"
-        wafWebAclDescription: "Web ACL for Application Load Balancer"
-        wafWebAclScope: "REGIONAL"
-        wafEnableSqlInjectionRule: true
-        wafEnableCrossSiteScriptingRule: true
-        wafEnableAmazonIpDdosProtectionRule: true
-        wafEnableCoreRuleSet: true
-        wafEnableKnownBadInputsRuleSet: true
-        wafEnableLinuxRuleSet: true
-        wafEnablePHPRuleSet: true
-        wafEnableSQLiRuleSet: true
-        wafEnableWordPressRuleSet: true 
-        wafEnableAdminProtectionRuleSet: false
-        applicationLoadBalancerArn: !GetAtt cloudWebApplicationLoadBalancer.Outputs.loadBalancerArn
-
 Outputs:
   vpcId:
     Value: !Ref vpc
     Export:
-      Name: !Sub "${project}-${env}-vpcStack-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-vpcStack-${AWS::Region}"
   securityGroup:
     Value: !Ref securityGroup
     Export:
-      Name: !Sub "${project}-${env}-securityGroupStack-${AWS::Region}"
-  cloudWebApplicationLoadBalancer:
-    Value: !Ref cloudWebApplicationLoadBalancer
+      Name: !Sub "${project}-${env}-${app}-securityGroupStack-${AWS::Region}"
+  applicationLoadBalancer:
+    Value: !Ref applicationLoadBalancer
     Export:
-      Name: !Sub "${project}-${env}-cloudWebApplicationLoadBalancerStack-${AWS::Region}"
-  s3ArtifactsBucket:
-    Value: !Ref s3ArtifactsBucket
-    Export:
-      Name: !Sub "${project}-${env}-s3ArtifactsBucketStack-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-applicationLoadBalancerStack-${AWS::Region}"
+#   s3ArtifactsBucket:
+#     Value: !Ref s3ArtifactsBucket
+#     Export:
+#       Name: !Sub "${project}-${env}-${app}-s3ArtifactsBucketStack-${AWS::Region}"
   s3CfAccessLogBucket:
     Value: !Ref s3CfAccessLogBucket
     Export:
-      Name: !Sub "${project}-${env}-s3CfAccessLogBucketStack-${AWS::Region}"
-  iamRoles:
-    Value: !Ref iamRoles
-    Export:
-      Name: !Sub "${project}-${env}-iamRolesStack-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-s3CfAccessLogBucketStack-${AWS::Region}"
+#   iamRoles:
+#     Value: !Ref iamRoles
+#     Export:
+#       Name: !Sub "${project}-${env}-${app}-iamRolesStack-${AWS::Region}"
   ec2Autoscaling:
     Value: !Ref ec2Autoscaling
     Export:
-      Name: !Sub "${project}-${env}-ec2AutoscalingStack-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-ec2AutoscalingStack-${AWS::Region}"
   cloudFrontDistribution:
     Value: !Ref cloudFrontDistribution
     Export:
-      Name: !Sub "${project}-${env}-cloudFrontDistributionStack-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-cloudFrontDistributionStack-${AWS::Region}"
   rdsInstance:
     Value: !Ref rdsDbInstance
     Export:
-      Name: !Sub "${project}-${env}-dbRdsInstance-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-rdsDbInstanceStack-${AWS::Region}"
   ssmParameterStore:
     Value: !Ref ssmParameterStore
     Export:
-      Name: !Sub "${project}-${env}-ssmParamStoreStack-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-ssmParameterStoreStack-${AWS::Region}"
   freeMemSsmDocument:
     Value: !Ref freeMemSsmDocument
     Export:
-      Name: !Sub "${project}-${env}-freeMemSsmDocumentStack-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-freeMemSsmDocumentStack-${AWS::Region}"
   updateInstanceIdLambdaFunc:
     Value: !Ref updateInstanceIdLambdaFunc
     Export:
-      Name: !Sub '${project}-${env}-updateInstanceIdLambdaFuncStack-${AWS::Region}' 
+      Name: !Sub '${project}-${env}-${app}-updateInstanceIdLambdaFuncStack-${AWS::Region}' 
   createAmiLambdaFunc:
     Value: !Ref createAmiLambdaFunc
     Export:
-      Name: !Sub '${project}-${env}-createAmiLambdaFuncStack-${AWS::Region}'  
+      Name: !Sub '${project}-${env}-${app}-createAmiLambdaFuncStack-${AWS::Region}'  
   updateAsgLaunchTemplateLambdaFunc:
     Value: !Ref updateAsgLaunchTemplateLambdaFunc
     Export:
-      Name: !Sub '${project}-${env}-updateAsgLaunchTemplateLambdaFuncStack-${AWS::Region}'
+      Name: !Sub '${project}-${env}-${app}-updateAsgLaunchTemplateLambdaFuncStack-${AWS::Region}'
   triggerScaleInAsgLambdaFunc:
     Value: !Ref triggerScaleInAsgLambdaFunc
     Export:
-      Name: !Sub '${project}-${env}-triggerScaleInAsgLambdaFuncStack-${AWS::Region}'
-  rdsStartStopLambdaFunc:
-    Value: !Ref rdsStartStopLambdaFunc
-    Export:
-      Name: !Sub "${project}-${env}-rdsStartStopLambdaFuncStack-${AWS::Region}"
-  ec2StartStopLambdaFunc:
-    Value: !Ref ec2StartStopLambdaFunc
-    Export:
-      Name: !Sub "${project}-${env}-ec2StartStopLambdaFuncStack-${AWS::Region}"
+      Name: !Sub '${project}-${env}-${app}-triggerScaleInAsgLambdaFuncStack-${AWS::Region}'
   cloudWatchEventRules:
     Value: !Ref cloudwatchEventRules
     Export:
-      Name: !Sub "${project}-${env}-cloudWatchEventRulesStack-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-cloudWatchEventRulesStack-${AWS::Region}"
   snsTopicForCwAlarms:
     Value: !Ref snsTopicForCwAlarms
     Export:
-      Name: !Sub "${project}-${env}-snsTopicForCwAlarmsStack-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-snsTopicForCwAlarmsStack-${AWS::Region}"
   snsTopicForTriggerScaleInAsgLambdaFunc:
     Value: !Ref snsTopicForTriggerScaleInAsgLambdaFunc
     Export:
-      Name: !Sub "${project}-${env}-snsTopicForTriggerScaleInAsgLambdaFuncStack-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-snsTopicForTriggerScaleInAsgLambdaFuncStack-${AWS::Region}"
   snsSubscrip1ForCwAlarms:
     Value: !Ref snsSubscrip1ForCwAlarms
     Export:
-      Name: !Sub "${project}-${env}-snsSubscrip1ForCwAlarmsStack-${AWS::Region}"
-  snsSubscrip2ForCwAlarms:
-    Value: !Ref snsSubscrip2ForCwAlarms
-    Export:
-      Name: !Sub "${project}-${env}-snsSubscrip2ForCwAlarmsStack-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-snsSubscrip1ForCwAlarmsStack-${AWS::Region}"
   snsSubscripForTriggerScaleInAsgLambdaFunc:
     Value: !Ref snsSubscripForTriggerScaleInAsgLambdaFunc
     Export:
-      Name: !Sub "${project}-${env}-snsSubscripForTriggerScaleInAsgLambdaFuncStack-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-snsSubscripForTriggerScaleInAsgLambdaFuncStack-${AWS::Region}"
   ec2CustomAlarms:
     Value: !Ref ec2CustomAlarms
     Export:
-      Name: !Sub "${project}-${env}-ec2CustomAlarmsStack-${AWS::Region}"  
+      Name: !Sub "${project}-${env}-${app}-ec2CustomAlarmsStack-${AWS::Region}"  
   asgCloudWatchAlarm:
     Value: !Ref asgCloudWatchAlarm
     Export:
-      Name: !Sub "${project}-${env}-asgCloudWatchAlarmStack-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-asgCloudWatchAlarmStack-${AWS::Region}"
   albCloudWatchAlarm:
     Value: !Ref albCloudWatchAlarm
     Export:
-      Name: !Sub "${project}-${env}-albCloudWatchAlarmStack-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-albCloudWatchAlarmStack-${AWS::Region}"
   cloudfrontCloudWatchAlarm:
     Value: !Ref cloudfrontCloudWatchAlarm
     Export:
-      Name: !Sub "${project}-${env}-cloudfrontCloudWatchAlarmStack-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-cloudfrontCloudWatchAlarmStack-${AWS::Region}"
   rdsCloudWatchAlarm:
     Value: !Ref rdsCloudWatchAlarm
     Export:
-      Name: !Sub "${project}-${env}-rdsCloudWatchAlarmStack-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-rdsCloudWatchAlarmStack-${AWS::Region}"
   rdsBackup:
     Value: !Ref rdsBackup
     Export:
-      Name: !Sub "${project}-${env}-rdsBackupStack-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-rdsBackupStack-${AWS::Region}"
   ec2Backup:
     Value: !Ref ec2Backup
     Export:
-      Name: !Sub "${project}-${env}-ec2BackupStack-${AWS::Region}"
-
+      Name: !Sub "${project}-${env}-${app}-ec2BackupStack-${AWS::Region}"

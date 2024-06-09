@@ -9,6 +9,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description:  Environment Name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   endpoint:
     Type: String
     Description: Targeted subscription's endpoint
@@ -35,4 +39,4 @@ Outputs:
   snsSubscriptionArn:
     Value: !Ref snsSubscription
     Export:
-      Name: !Sub "${project}-${env}-${snsSubscripExportName}-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-${snsSubscripExportName}-${AWS::Region}"

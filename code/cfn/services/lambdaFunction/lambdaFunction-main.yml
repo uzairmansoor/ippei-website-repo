@@ -11,6 +11,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description:  Environment Name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   s3ArtifactPath:
     Type: String
     Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
@@ -24,18 +28,18 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
-        lambdaFunctionName: !Sub "${project}-${env}-updateCustomAlarms-${AWS::Region}"
+        lambdaFunctionName: !Sub "${project}-${env}-${app}-updateCustomAlarms-${AWS::Region}"
         runtimeVersion: python3.10
         lambdaHandler: updateCustomCloudWatchAlarms.lambda_handler
         timeout: 30
         lambdaExecutionRoleArn: !GetAtt iamRoles.Outputs.lambdaRoleForCustomAlarms
         s3BucketName: cloudweb-wordpress-artifacts-us-east-1-770760105158
         s3Key: updateCustomCloudWatchAlarms.zip
-        launchTemplateName: !Sub "${project}-${env}-LaunchTemplateforASG"
-        instanceIdsParamStore: !Sub "${project}-${env}-instanceIdParamStore-${AWS::Region}"
+        launchTemplateName: !Sub "${project}-${env}-${app}-LaunchTemplateforASG"
+        instanceIdsParamStore: !Sub "${project}-${env}-${app}-instanceIdParamStore-${AWS::Region}"
         memMetricName: mem_used_percent
         diskMetricName: disk_used_percent
-        asgName: !Sub "${project}-${env}-AutoScalingGroup"
+        asgName: !Sub "${project}-${env}-${app}-AutoScalingGroup"
   
   createAmiLambdaFunc:
     Type: AWS::CloudFormation::Stack
@@ -44,18 +48,18 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
-        lambdaFunctionName: !Sub "${project}-${env}-createAmi-${AWS::Region}"
+        lambdaFunctionName: !Sub "${project}-${env}-${app}-createAmi-${AWS::Region}"
         runtimeVersion: python3.10
         lambdaHandler: createAmi.lambda_handler
         timeout: 30
         lambdaExecutionRoleArn: !GetAtt iamRoles.Outputs.lambdaRoleForCreateAmiFunctionArn
         s3BucketName: cloudweb-wordpress-artifacts-us-east-1-770760105158
         s3Key: createAmi.zip
-        launchTemplateName: !Sub "${project}-${env}-LaunchTemplateforASG"
-        instanceIdsParamStore: !Sub "${project}-${env}-instanceIdParamStore-${AWS::Region}"
+        launchTemplateName: !Sub "${project}-${env}-${app}-LaunchTemplateforASG"
+        instanceIdsParamStore: !Sub "${project}-${env}-${app}-instanceIdParamStore-${AWS::Region}"
         memMetricName: mem_used_percent
         diskMetricName: disk_used_percent
-        asgName: !Sub "${project}-${env}-AutoScalingGroup"
+        asgName: !Sub "${project}-${env}-${app}-AutoScalingGroup"
 
   updateAsgLaunchTemplateLambdaFunc:
     Type: AWS::CloudFormation::Stack
@@ -64,41 +68,41 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
-        lambdaFunctionName: !Sub "${project}-${env}-updateAsgLaunchTemplate-${AWS::Region}"
+        lambdaFunctionName: !Sub "${project}-${env}-${app}-updateAsgLaunchTemplate-${AWS::Region}"
         runtimeVersion: python3.10
         lambdaHandler: updateAsgLaunchTemplate.lambda_handler
         timeout: 30
         lambdaExecutionRoleArn: !GetAtt iamRoles.Outputs.lambdaRoleForAsgLaunchTemplateArn
         s3BucketName: cloudweb-wordpress-artifacts-us-east-1-770760105158
         s3Key: updateAsgLaunchTemplate.zip
-        launchTemplateName: !Sub "${project}-${env}-LaunchTemplateforASG"
-        instanceIdsParamStore: !Sub "${project}-${env}-instanceIdParamStore-${AWS::Region}"
+        launchTemplateName: !Sub "${project}-${env}-${app}-LaunchTemplateforASG"
+        instanceIdsParamStore: !Sub "${project}-${env}-${app}-instanceIdParamStore-${AWS::Region}"
         memMetricName: mem_used_percent
         diskMetricName: disk_used_percent
-        asgName: !Sub "${project}-${env}-AutoScalingGroup"
+        asgName: !Sub "${project}-${env}-${app}-AutoScalingGroup"
 
 Outputs:
   customAlarmsLambdaFuncId:
     Value: !Ref customAlarmsLambdaFunc
     Export:
-      Name: !Sub '${project}-${env}-customAlarmsLambdaFuncId-${AWS::Region}' 
+      Name: !Sub '${project}-${env}-${app}-customAlarmsLambdaFuncId-${AWS::Region}' 
   customAlarmsLambdaFuncArn:
     Value: !GetAtt customAlarmsLambdaFunc.Arn
     Export:
-      Name: !Sub '${project}-${env}-customAlarmsLambdaFuncArn-${AWS::Region}' 
+      Name: !Sub '${project}-${env}-${app}-customAlarmsLambdaFuncArn-${AWS::Region}' 
   createAmiLambdaFuncId:
     Value: !Ref createAmiLambdaFunc
     Export:
-      Name: !Sub '${project}-${env}-createAmiLambdaFuncId-${AWS::Region}' 
+      Name: !Sub '${project}-${env}-${app}-createAmiLambdaFuncId-${AWS::Region}' 
   createAmiLambdaFuncArn:
     Value: !GetAtt createAmiLambdaFunc.Arn
     Export:
-      Name: !Sub '${project}-${env}-createAmiLambdaFuncArn-${AWS::Region}' 
+      Name: !Sub '${project}-${env}-${app}-createAmiLambdaFuncArn-${AWS::Region}' 
   updateAsgLaunchTemplateLambdaFuncId:
     Value: !Ref updateAsgLaunchTemplateLambdaFunc
     Export:
-      Name: !Sub '${project}-${env}-updateAsgLaunchTemplateLambdaFuncId-${AWS::Region}'
+      Name: !Sub '${project}-${env}-${app}-updateAsgLaunchTemplateLambdaFuncId-${AWS::Region}'
   updateAsgLaunchTemplateLambdaFuncArn:
     Value: !GetAtt updateAsgLaunchTemplateLambdaFunc.Arn
     Export:
-      Name: !Sub '${project}-${env}-updateAsgLaunchTemplateLambdaFuncArn-${AWS::Region}' 
+      Name: !Sub '${project}-${env}-${app}-updateAsgLaunchTemplateLambdaFuncArn-${AWS::Region}' 

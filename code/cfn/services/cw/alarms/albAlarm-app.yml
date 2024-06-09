@@ -9,6 +9,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description:  Environment name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   snsTopicArn: 
     Type: String
     Description: Arn of SNS topic 
@@ -136,12 +140,12 @@ Outputs:
   albUnhealthyHostAlarm:
     Value: !Ref albUnhealthyHostAlarm
     Export:
-      Name: !Sub "${project}-${env}-albUnhealthyHostsAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-albUnhealthyHostsAlarmName-${AWS::Region}"
   alb5xxErrorsAlarm:
     Value: !Ref alb5xxErrorsAlarm
     Export:
-      Name: !Sub "${project}-${env}-alb5xxErrorAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-alb5xxErrorAlarmName-${AWS::Region}"
   alb4xxErrorsAlarm:
     Value: !Ref alb4xxErrorsAlarm
     Export:
-      Name: !Sub "${project}-${env}-alb4xxErrorAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-alb4xxErrorAlarmName-${AWS::Region}"

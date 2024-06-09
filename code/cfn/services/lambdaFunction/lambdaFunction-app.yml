@@ -10,6 +10,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description: Environment name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   lambdaFunctionName:
     Type: String
     Description: Name of the lambda function
@@ -86,7 +90,7 @@ Resources:
         S3Key: !Ref s3Key
       Tags:
           - Key: Name
-            Value: !Sub ${project}-${env}-customAlarmsLambdaFunction
+            Value: !Sub ${project}-${env}-${app}-customAlarmsLambdaFunction
           - Key: project
             Value: !Ref project
           - Key: env

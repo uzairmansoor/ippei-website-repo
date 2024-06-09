@@ -10,6 +10,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description: Environment name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   wafWebAclName:
     Type: String
     Default: ''
@@ -499,4 +503,4 @@ Outputs:
   wafWebAcl:
     Value: !GetAtt wafWebACL.Arn
     Export:
-        Name: !Sub "${project}-${env}-wafWebAclArn-${AWS::Region}"
+        Name: !Sub "${project}-${env}-${app}-wafWebAclArn-${AWS::Region}"

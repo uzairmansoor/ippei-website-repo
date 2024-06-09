@@ -9,6 +9,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description:  Environment Name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   snsTopicArn: 
     Type: String
     Description: Arn of SNS topic 
@@ -86,7 +90,7 @@ Resources:
   rdsLowStorageAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub "${project}-${env}-${lowRdsStorageAlarmName}-${AWS::Region}"
+      AlarmName: !Sub "${project}-${env}-${app}-${lowRdsStorageAlarmName}-${AWS::Region}"
       AlarmDescription: !Sub "Trigger alarm when ${project} ${env} RDS storage is less than or equal to ${rdsLowStorageThreshold}"
       MetricName: !Ref freeStorageSpaceMetricName
       Namespace: !Ref rdsNamespace
@@ -104,7 +108,7 @@ Resources:
   rdsMediumStorageAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub "${project}-${env}-${mediumRdsStorageAlarmName}-${AWS::Region}"
+      AlarmName: !Sub "${project}-${env}-${app}-${mediumRdsStorageAlarmName}-${AWS::Region}"
       AlarmDescription: !Sub "Trigger alarm when ${project} ${env} RDS storage is less than or equal to ${rdsMediumStorageThreshold}"
       MetricName: !Ref freeStorageSpaceMetricName
       Namespace: !Ref rdsNamespace
@@ -122,7 +126,7 @@ Resources:
   rdsHighStorageAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub "${project}-${env}-${highRdsStorageAlarmName}-${AWS::Region}"
+      AlarmName: !Sub "${project}-${env}-${app}-${highRdsStorageAlarmName}-${AWS::Region}"
       AlarmDescription: !Sub "Trigger alarm when ${project} ${env} RDS storage is less than or equal to ${rdsHighStorageThreshold}" 
       MetricName: !Ref freeStorageSpaceMetricName
       Namespace: !Ref rdsNamespace
@@ -140,7 +144,7 @@ Resources:
   rdsLowCpuAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub "${project}-${env}-${lowRdsCpuAlarmName}-${AWS::Region}"
+      AlarmName: !Sub "${project}-${env}-${app}-${lowRdsCpuAlarmName}-${AWS::Region}"
       AlarmDescription: !Sub "Trigger alarm when ${project} ${env} RDS CPU utilization is greater than or equal to ${rdsLowCpuUtilizationThreshold}"
       MetricName: !Ref cpuUtilizationMetricName
       Namespace: !Ref rdsNamespace
@@ -158,7 +162,7 @@ Resources:
   rdsMediumCpuAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub "${project}-${env}-${mediumRdsCpuAlarmName}-${AWS::Region}"
+      AlarmName: !Sub "${project}-${env}-${app}-${mediumRdsCpuAlarmName}-${AWS::Region}"
       AlarmDescription: !Sub "Trigger alarm when ${project} ${env} RDS CPU utilization is greater than or equal to ${rdsMediumStorageThreshold}" 
       MetricName: !Ref cpuUtilizationMetricName
       Namespace: !Ref rdsNamespace
@@ -176,7 +180,7 @@ Resources:
   rdsHighCpuAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub "${project}-${env}-${highRdsCpuAlarmName}-${AWS::Region}"
+      AlarmName: !Sub "${project}-${env}-${app}-${highRdsCpuAlarmName}-${AWS::Region}"
       AlarmDescription: !Sub "Trigger alarm when ${project} ${env} RDS CPU utilization is greater than or equal to ${rdsHighCpuUtilizationThreshold}" 
       MetricName: !Ref cpuUtilizationMetricName
       Namespace: !Ref rdsNamespace
@@ -196,24 +200,24 @@ Outputs:
   rdsLowStorageAlarm:
     Value: !Ref rdsLowStorageAlarm
     Export:
-      Name: !Sub "${project}-${env}-rdsLowStorageAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-rdsLowStorageAlarmName-${AWS::Region}"
   rdsMediumStorageAlarm:
     Value: !Ref rdsMediumStorageAlarm
     Export:
-      Name: !Sub "${project}-${env}-rdsMediumStorageAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-rdsMediumStorageAlarmName-${AWS::Region}"
   rdsHighStorageAlarm:
     Value: !Ref rdsHighStorageAlarm
     Export:
-      Name: !Sub "${project}-${env}-rdsHighStorageAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-rdsHighStorageAlarmName-${AWS::Region}"
   rdsLowCpuAlarm:
     Value: !Ref rdsLowCpuAlarm
     Export:
-      Name: !Sub "${project}-${env}-rdsLowCpuAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-rdsLowCpuAlarmName-${AWS::Region}"
   rdsMediumCpuAlarm:
     Value: !Ref rdsMediumCpuAlarm
     Export:
-      Name: !Sub "${project}-${env}-rdsMediumCpuAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-rdsMediumCpuAlarmName-${AWS::Region}"
   rdsHighCpuAlarm:
     Value: !Ref rdsHighCpuAlarm
     Export:
-      Name: !Sub "${project}-${env}-rdsHighCpuAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-rdsHighCpuAlarmName-${AWS::Region}"

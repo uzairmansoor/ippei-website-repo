@@ -10,6 +10,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description:  Environment Name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   s3ArtifactPath:
     Type: String
     Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
@@ -23,7 +27,7 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
-        autoScalingGroupName: !Sub "${project}-${env}-AutoScalingGroup"
+        autoScalingGroupName: !Sub "${project}-${env}-${app}-AutoScalingGroup"
         customAlarmsLambdaFunctionArn: !GetAtt lambdaFunctions.Outputs.customAlarmsLambdaFunctionArn
         customAlarmsCWEventRuleState: ENABLED
         eventPatternSource: aws.autoscaling
@@ -38,4 +42,4 @@ Outputs:
   cloudWatchEventRules:
     Value: !Ref cloudWatchEventRules
     Export:
-      Name: !Sub "${project}-${env}-cloudwatchEventRulesStack-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-cloudwatchEventRulesStack-${AWS::Region}"

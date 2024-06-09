@@ -1,8 +1,18 @@
-aws s3 sync . s3://cloudweb-wordpress-prod-us-east-1-770760105158 --profile AWSAdministratorAccess-770760105158
+                                            #######     DEV     #######
+aws s3 sync . s3://ippei-dev-app-us-east-1-203352749099/ --exclude "LICENSE" --exclude "*.md" --exclude ".git/*"
 
-aws cloudformation create-stack --stack-name cloud-web-prod --template-body file://main.yml --profile AWSAdministratorAccess-770760105158 --region us-east-1 --capabilities CAPABILITY_NAMED_IAM --parameters ParameterKey=dBPassword,ParameterValue=cloudservices ParameterKey=dBUsername,ParameterValue=devteamuser
+aws cloudformation create-stack --stack-name ippei-web-dev --template-body file://code/cfn/stacks/dev/main.yml --region us-east-1 --capabilities CAPABILITY_NAMED_IAM --parameters ParameterKey=dBUsername,ParameterValue=ippeicoachadmin ParameterKey=dBPassword,ParameterValue=vcFfG78c!S1v#JBYQtLuk
 
-aws cloudformation update-stack --stack-name cloud-web-prod --template-body file://code/cfn/stacks/prod/main.yml --profile AWSAdministratorAccess-770760105158 --region us-east-1 --capabilities CAPABILITY_NAMED_IAM --parameters ParameterKey=dBPassword,ParameterValue=cloudservices ParameterKey=dBUsername,ParameterValue=devteamuser
+aws cloudformation update-stack --stack-name ippei-web-dev --template-body file://code/cfn/stacks/dev/main.yml --region us-east-1 --capabilities CAPABILITY_NAMED_IAM --parameters ParameterKey=dBUsername,ParameterValue=ippeicoachadmin ParameterKey=dBPassword,ParameterValue=vcFfG78c!S1v#JBYQtLuk
 
-aws cloudformation delete-stack --stack-name cloud-web-prod --profile AWSAdministratorAccess-770760105158 --region us-east-1
+aws cloudformation delete-stack --stack-name ippei-web-dev --region us-east-1
+
+                                            #######     PROD     #######
+aws s3 sync . s3://ippei-prod-app-us-east-1-203352749099/ --exclude "LICENSE" --exclude "*.md" --exclude ".git/*"
+
+aws cloudformation create-stack --stack-name ippei-web-prod --template-body file://code/cfn/stacks/prod/main.yml --region us-east-1 --capabilities CAPABILITY_NAMED_IAM --parameters ParameterKey=dBUsername,ParameterValue=ippeicoachadmin ParameterKey=dBPassword,ParameterValue=vcFfG78c!S1v#JBYQtLuk
+
+aws cloudformation update-stack --stack-name ippei-web-prod --template-body file://code/cfn/stacks/prod/main.yml --region us-east-1 --capabilities CAPABILITY_NAMED_IAM --parameters ParameterKey=dBUsername,ParameterValue=ippeicoachadmin ParameterKey=dBPassword,ParameterValue=vcFfG78c!S1v#JBYQtLuk
+
+aws cloudformation delete-stack --stack-name ippei-web-prod --region us-east-1
 

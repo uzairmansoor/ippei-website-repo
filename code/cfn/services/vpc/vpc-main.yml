@@ -23,6 +23,7 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
+        app: !Ref app
         vpcCidr: 10.0.0.0/16
         publicSubnet1Cidr: 10.0.1.0/24
         publicSubnet2Cidr: 10.0.2.0/24
@@ -47,5 +48,5 @@ Outputs:
   vpcId:
     Value: !Ref vpc
     Export:
-      Name: !Sub "${project}-${env}-vpc-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-vpc-${AWS::Region}"
 

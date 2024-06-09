@@ -25,6 +25,7 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
+        app: !Ref app
         vpcId: !GetAtt vpc.Outputs.vpcId
         sgInternetTrafficIngressCidr: 0.0.0.0/0
         sgInternetTrafficEgressCidr: 0.0.0.0/0
@@ -33,13 +34,11 @@ Resources:
         sgHttpPort: 80
         sgRdsPort: 3306
         sgAllowAllEgressProtocol: -1
-        netsolCidrIp: 45.64.183.177/32
-      
-
+        netsolCidrIp: 0.0.0.0/0
 Outputs:
   securityGroup:
     Value: !Ref securityGroup
     Export:
-      Name: !Sub "${project}-${env}-securitygroup-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-securitygroup-${AWS::Region}"
   
 

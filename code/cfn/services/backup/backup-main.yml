@@ -10,6 +10,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description:  Environment Name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   s3ArtifactPath:
     Type: String
     Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
@@ -72,13 +76,13 @@ Outputs:
   iamRoles:
     Value: !Ref iamRoles
     Export:
-      Name: !Sub "${project}-${env}-iamRoles-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-iamRoles-${AWS::Region}"
   rdsBackup:
     Value: !Ref rdsBackup
     Export:
-      Name: !Sub "${project}-${env}-rdsBackup-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-rdsBackup-${AWS::Region}"
   ec2Backup:
     Value: !Ref ec2Backup
     Export:
-      Name: !Sub "${project}-${env}-ec2Backup-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-ec2Backup-${AWS::Region}"
  

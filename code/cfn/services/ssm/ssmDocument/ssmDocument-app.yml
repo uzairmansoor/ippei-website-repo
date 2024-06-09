@@ -11,6 +11,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description:  Environment Name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   ssmDocumentName:
     Type: String
     Description:  Name of the ssm document
@@ -64,7 +68,7 @@ Resources:
   freeMemSsmDocument:
     Type: AWS::SSM::Document
     Properties:
-      Name: !Sub "${project}-${env}-${ssmDocumentName}-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-${ssmDocumentName}-${AWS::Region}"
       DocumentFormat: !Ref ssmDocumentFormat
       DocumentType: !Ref ssmDocumentType
       TargetType: !Ref ssmDocumentTargetType
@@ -125,7 +129,7 @@ Resources:
                 - "echo \"*/1 * * * * /home/bitnami/'{{ scriptFileName }}'\" | crontab -"
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-${ssmDocumentName}-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-${ssmDocumentName}-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
@@ -135,4 +139,4 @@ Outputs:
   freeMemSsmDocumentName:
     Value: !Ref freeMemSsmDocument
     Export:
-      Name: !Sub "${project}-${env}-${ssmDocumentName}-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-${ssmDocumentName}-${AWS::Region}"

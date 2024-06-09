@@ -9,6 +9,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description:  Environment name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   snsTopicArn: 
     Type: String
     Description: Arn of SNS topic 
@@ -176,7 +180,7 @@ Resources:
   asgCpuScaleInAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub "${project}-${env}-${asgCpuScaleInAlarmName}-${AWS::Region}"
+      AlarmName: !Sub "${project}-${env}-${app}-${asgCpuScaleInAlarmName}-${AWS::Region}"
       AlarmDescription: Notification for EC2 CPU Utilization to Trigger Scale-In
       MetricName: !Ref cpuMetricName
       Namespace: AWS/EC2
@@ -269,32 +273,32 @@ Outputs:
   asgLowCpuAlarm:
     Value: !Ref asgLowCpuAlarm
     Export:
-      Name: !Sub "${project}-${env}-asgLowCpuAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-asgLowCpuAlarmName-${AWS::Region}"
   asgHighCpuAlarm:
     Value: !Ref asgHighCpuAlarm
     Export:
-      Name: !Sub "${project}-${env}-asgHighCpuAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-asgHighCpuAlarmName-${AWS::Region}"
   asgMediumCpuAlarm:
     Value: !Ref asgMediumCpuAlarm
     Export:
-      Name: !Sub "${project}-${env}-asgMediumCpuAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-asgMediumCpuAlarmName-${AWS::Region}"
   asgCpuScaleInAlarm:
     Value: !Ref asgCpuScaleInAlarm
     Export:
-      Name: !Sub "${project}-${env}-asgCpuScaleInAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-asgCpuScaleInAlarmName-${AWS::Region}"
   statusCheckEc2Alarm:
     Value: !Ref statusCheckEc2Alarm
     Export:
-      Name: !Sub "${project}-${env}-asgStatusCheckEc2AlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-asgStatusCheckEc2AlarmName-${AWS::Region}"
   systemStatusCheckEc2Alarm:
     Value: !Ref systemStatusCheckEc2Alarm
     Export:
-      Name: !Sub "${project}-${env}-asgSystemStatusCheckEc2AlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-asgSystemStatusCheckEc2AlarmName-${AWS::Region}"
   asgNetworkInTrafficAlarm:
     Value: !Ref asgNetworkInTrafficAlarm
     Export:
-      Name: !Sub "${project}-${env}-asgNetworkInTrafficAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-asgNetworkInTrafficAlarmName-${AWS::Region}"
   asgNetworkOutTrafficAlarm:
     Value: !Ref asgNetworkOutTrafficAlarm
     Export:
-      Name: !Sub "${project}-${env}-asgNetworkOutTrafficAlarmName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-asgNetworkOutTrafficAlarmName-${AWS::Region}"

@@ -9,6 +9,10 @@ Parameters:
     Default: stag
     AllowedValues: [prod, dev, qa, stag]
     Description:  Environment Name
+  app:
+    Type: String
+    Default: app
+    Description: Name of the app
   vpcId:
     Type: String
     Description: ID of the VPC
@@ -146,11 +150,13 @@ Resources:
       IpAddressType: !Ref ipAddressType  
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-loadBalancer-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-loadBalancer-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
           Value: !Ref env
+        - Key: app
+          Value: !Ref app
   lbHttpsListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
@@ -184,53 +190,55 @@ Resources:
     Properties:
       VpcId: !Ref vpcId
       HealthCheckIntervalSeconds: !Ref healthCheckIntervalSeconds 
-      HealthCheckProtocol: !Ref lbHttpsProtocol
+      HealthCheckProtocol: !Ref lbHttpProtocol
       HealthCheckTimeoutSeconds: !Ref healthCheckTimeoutSeconds 
       HealthyThresholdCount:  !Ref healthyThresholdCount 
       UnhealthyThresholdCount: !Ref unHealthyThresholdCount
       Matcher:
         HttpCode: !Ref appCode
-      Name: !Sub "${project}-${env}-lbHttpsTG"
-      Port: !Ref lbHttpsPort
-      Protocol: !Ref lbHttpsProtocol
+      Name: !Sub "${project}-${env}-${app}-lbHttpsTG"
+      Port: !Ref lbHttpPort
+      Protocol: !Ref lbHttpProtocol
       TargetType: !Ref lbTargetType
       TargetGroupAttributes:
         - Key: load_balancing.algorithm.type
           Value: !Ref loadBalancerMethod 
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-lbHttpsTargetGroup-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-lbHttpsTargetGroup-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
           Value: !Ref env
+        - Key: app
+          Value: !Ref app
   
 Outputs:
   loadBalancerArn:
     Value: !Ref loadBalancer
     Export:
-      Name: !Sub "${project}-${env}-loadBalancerArn-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-loadBalancerArn-${AWS::Region}"
   lbDnsName:
     Value: !GetAtt loadBalancer.DNSName
     Export:
-      Name: !Sub "${project}-${env}-lbDnsname-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-lbDnsname-${AWS::Region}"
   lbFullName:
     Value: !GetAtt loadBalancer.LoadBalancerFullName
     Export:
-      Name: !Sub "${project}-${env}-lbFullName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-lbFullName-${AWS::Region}"
   lbHttpListener:
     Value: !GetAtt lbHttpListener.ListenerArn
     Export:
-      Name: !Sub "${project}-${env}-lbHttpListener-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-lbHttpListener-${AWS::Region}"
   lbHttpsListener:
     Value: !GetAtt lbHttpsListener.ListenerArn
     Export:
-      Name: !Sub "${project}-${env}-lbHttpsListener-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-lbHttpsListener-${AWS::Region}"
   lbTargetGroupFullName:
     Value: !GetAtt lbHttpsTargetGroup.TargetGroupFullName
     Export:
-      Name: !Sub "${project}-${env}-lbTargetGroupFullName-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-lbTargetGroupFullName-${AWS::Region}"
   lbTargetGroupArn:
     Value: !GetAtt lbHttpsTargetGroup.TargetGroupArn
     Export:
-      Name: !Sub "${project}-${env}-lbTargetGroupArn-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-lbTargetGroupArn-${AWS::Region}"
