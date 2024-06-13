@@ -89,6 +89,25 @@ Resources:
         ec2EndpointPreserveClientIp: True
         ec2EndpointSg: !GetAtt securityGroup.Outputs.sgEc2ConnectEndpoint
         ec2EndpointSubnetId: !GetAtt vpc.Outputs.privateSubnet1
+  jumpServer:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - vpc
+      - securityGroup
+    Properties:
+      TemplateURL: !Sub "${s3ArtifactPath}/ec2/ec2-app.yml"
+      Parameters:
+        project: !Ref project
+        env: !Ref env
+        app: jumpServer
+        imageId: ami-04b70fa74e45c3917
+        instanceType: t2.micro
+        ec2SubnetId: !GetAtt vpc.Outputs.publicSubnet1
+        ec2SShSecurityGroup: !GetAtt securityGroup.Outputs.sgEc2ConnectEndpoint
+        keyPairName: !Sub "${project}-${env}-${app}-${AWS::Region}-${AWS::AccountId}"
+        ebsVolumeSize: 8
+        ebsVolumeType: gp3
+        ebsMappingDevineName: /dev/xvda
   s3AlbAccessLogBucket:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -716,7 +735,6 @@ Resources:
     Type: AWS::CloudFormation::Stack
     DependsOn:
       - iamRoles
-      - rdsDbInstance
     Properties:
       TemplateURL: !Sub "${s3ArtifactPath}/backup/backup-app.yml"
       Parameters:
@@ -739,7 +757,6 @@ Resources:
     Type: AWS::CloudFormation::Stack
     DependsOn:
       - iamRoles
-      - rdsDbInstance
     Properties:
       TemplateURL: !Sub "${s3ArtifactPath}/backup/backup-app.yml"
       Parameters:

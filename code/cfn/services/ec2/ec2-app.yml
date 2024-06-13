@@ -27,9 +27,6 @@ Parameters:
   ec2SShSecurityGroup:
     Type: AWS::EC2::SecurityGroup::Id
     Description: ID of the security group to allow SSh traffic
-  serverName:
-    Type: String
-    Description: name of instance
   keyPairName:
     Type: String
     Description: Name of key pair
@@ -63,7 +60,7 @@ Resources:
       KeyName: !Ref keyPairName
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-${app}-${serverName}-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
@@ -73,4 +70,4 @@ Outputs:
   ec2Instance:
     Value: !Ref ec2Instance
     Export:
-      Name: !Sub "${project}-${env}-${app}-${serverName}-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-${AWS::Region}"
