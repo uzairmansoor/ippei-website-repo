@@ -156,7 +156,7 @@ Resources:
         appCode: 200-499
         lbTargetType: instance
         statusCode: HTTP_301
-        acmCertificateIdentifier: e7536a34-840e-43e1-8539-ad15a7183f47
+        acmCertificateIdentifier: 7b7d8278-e046-4bac-8af2-1a1a31510ca2
         loadBalancerType: application
         lbHttpsListenerSslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
         lbHttpsProtocol: HTTPS
@@ -276,10 +276,10 @@ Resources:
         defaultTTL: 86400
         maxTTL: 259300
         minTTL: 86400
-        acmCertificateIdentifier: e7536a34-840e-43e1-8539-ad15a7183f47
+        acmCertificateIdentifier: 7b7d8278-e046-4bac-8af2-1a1a31510ca2
         cfHttpsPort: 443
         cfOriginSSLProtocols: TLSv1.2
-        cfAlias: dev.ippei.com
+        cfAlias: ippei.netsolcloudservices.com
         # cfAlias2: .goldirahedge.com
         # cfAlias3: *.goldirahedge.com
         cfOriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
