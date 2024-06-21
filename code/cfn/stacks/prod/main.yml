@@ -190,7 +190,7 @@ Resources:
         project: !Ref project
         env: !Ref env
         app: !Ref app
-        amiId: ami-0e745401bedef08c6 #ami-03bf99b4c6465618f
+        amiId: ami-0914585ea7964d53f
   iamRoles:
     Type: AWS::CloudFormation::Stack
     DependsOn:
@@ -313,7 +313,7 @@ Resources:
         app: !Ref app
         dBInstanceIdentifier: db
         dbName: ""
-        dBSnapshotIdentifier: ippei-web-prod-app-migration
+        dBSnapshotIdentifier: migrated-rds-theme-us-east-1-203352749099
         dBInstanceClass: db.t3.micro
         dbPrivateSubnet01: !GetAtt vpc.Outputs.protectedSubnet1
         dbPrivateSubnet02: !GetAtt vpc.Outputs.protectedSubnet2
@@ -796,10 +796,10 @@ Outputs:
     Value: !Ref s3CfAccessLogBucket
     Export:
       Name: !Sub "${project}-${env}-${app}-s3CfAccessLogBucketStack-${AWS::Region}"
-#   iamRoles:
-#     Value: !Ref iamRoles
-#     Export:
-#       Name: !Sub "${project}-${env}-${app}-iamRolesStack-${AWS::Region}"
+  iamRoles:
+    Value: !Ref iamRoles
+    Export:
+      Name: !Sub "${project}-${env}-${app}-iamRolesStack-${AWS::Region}"
   ec2Autoscaling:
     Value: !Ref ec2Autoscaling
     Export:
@@ -808,7 +808,7 @@ Outputs:
     Value: !Ref cloudFrontDistribution
     Export:
       Name: !Sub "${project}-${env}-${app}-cloudFrontDistributionStack-${AWS::Region}"
-  rdsInstance:
+  rdsDbInstance:
     Value: !Ref rdsDbInstance
     Export:
       Name: !Sub "${project}-${env}-${app}-rdsDbInstanceStack-${AWS::Region}"
@@ -872,10 +872,10 @@ Outputs:
     Value: !Ref cloudfrontCloudWatchAlarm
     Export:
       Name: !Sub "${project}-${env}-${app}-cloudfrontCloudWatchAlarmStack-${AWS::Region}"
-  rdsCloudWatchAlarm:
-    Value: !Ref rdsCloudWatchAlarm
-    Export:
-      Name: !Sub "${project}-${env}-${app}-rdsCloudWatchAlarmStack-${AWS::Region}"
+  # rdsCloudWatchAlarm:
+  #   Value: !Ref rdsCloudWatchAlarm
+  #   Export:
+  #     Name: !Sub "${project}-${env}-${app}-rdsCloudWatchAlarmStack-${AWS::Region}"
   rdsBackup:
     Value: !Ref rdsBackup
     Export:
