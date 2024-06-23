@@ -43,6 +43,7 @@ Resources:
         autoScalingMinSize: 1
         autoScalingMaxSize: 2
         sgEc2Web: !GetAtt securityGroup.Outputs.sgEc2Web
+        enableBlockDeviceMapping: False
         ebsVolumeSize: 30
         ebsVolumeType: gp3
         targetGroupArn: !GetAtt cloudWebLoadBalancer.Outputs.lbHttpsTargetGroup

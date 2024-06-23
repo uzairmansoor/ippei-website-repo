@@ -156,7 +156,7 @@ Resources:
         appCode: 200-499
         lbTargetType: instance
         statusCode: HTTP_301
-        acmCertificateIdentifier: 7b7d8278-e046-4bac-8af2-1a1a31510ca2
+        acmCertificateIdentifier: e7536a34-840e-43e1-8539-ad15a7183f47
         loadBalancerType: application
         lbHttpsListenerSslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
         lbHttpsProtocol: HTTPS
@@ -190,7 +190,7 @@ Resources:
         project: !Ref project
         env: !Ref env
         app: !Ref app
-        amiId: ami-0914585ea7964d53f
+        amiId: ami-0e3c62ca9cc16915f #ami-063dd2809f0bc297d #ami-0914585ea7964d53f
   iamRoles:
     Type: AWS::CloudFormation::Stack
     DependsOn:
@@ -228,12 +228,13 @@ Resources:
         keyPairName: !Sub "${project}-${env}-${app}-${AWS::Region}-${AWS::AccountId}"
         launchTemplateName: !Sub "${project}-${env}-${app}-asgLaunchTemplate"
         autoScalingGroupName: !Sub "${project}-${env}-${app}-AutoScalingGroup"
-        privateSubnet1Id: !GetAtt vpc.Outputs.publicSubnet1
-        privateSubnet2Id: !GetAtt vpc.Outputs.publicSubnet2
+        privateSubnet1Id: !GetAtt vpc.Outputs.privateSubnet1
+        privateSubnet2Id: !GetAtt vpc.Outputs.privateSubnet2
         autoScalingDesiredCapacity: 1
         autoScalingMaxSize: 2
         autoScalingMinSize: 1
         sgEc2Web: !GetAtt securityGroup.Outputs.sgEc2Web
+        enableBlockDeviceMapping: False
         ebsVolumeSize: 200
         ebsVolumeType: gp3
         targetGroupArn: !GetAtt applicationLoadBalancer.Outputs.lbTargetGroupArn
@@ -255,7 +256,7 @@ Resources:
         detailedMonitoring: true
         memUtilSSMParamStoreName: !GetAtt ssmParameterStore.Outputs.memUtilSSMParamStoreName
         diskUtilSSMParamStoreName: !GetAtt ssmParameterStore.Outputs.diskUtilSSMParamStoreName
-        ssmAssociationName: !Sub "${project}-${env}-${app}-freeMem-${AWS::Region}"
+        ssmAssociationName: !Sub "${project}-${env}-freeMem-${AWS::Region}"
         regionName: !Sub ${AWS::Region}
   cloudFrontDistribution:
     Type: AWS::CloudFormation::Stack
@@ -276,10 +277,10 @@ Resources:
         defaultTTL: 86400
         maxTTL: 259300
         minTTL: 86400
-        acmCertificateIdentifier: 7b7d8278-e046-4bac-8af2-1a1a31510ca2
+        acmCertificateIdentifier: e7536a34-840e-43e1-8539-ad15a7183f47
         cfHttpsPort: 443
         cfOriginSSLProtocols: TLSv1.2
-        cfAlias: ippei.netsolcloudservices.com
+        cfAlias: ippei.com
         # cfAlias2: .goldirahedge.com
         # cfAlias3: *.goldirahedge.com
         cfOriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
@@ -313,7 +314,7 @@ Resources:
         app: !Ref app
         dBInstanceIdentifier: db
         dbName: ""
-        dBSnapshotIdentifier: migrated-rds-theme-us-east-1-203352749099
+        dBSnapshotIdentifier: migrated-rds-before-mig-us-east-1-203352749099 #migrated-rds-theme-us-east-1-203352749099
         dBInstanceClass: db.t3.micro
         dbPrivateSubnet01: !GetAtt vpc.Outputs.protectedSubnet1
         dbPrivateSubnet02: !GetAtt vpc.Outputs.protectedSubnet2
@@ -336,8 +337,7 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
-        app: !Ref app
-        ssmDocumentName: freeMem
+        app: freeMem
         ssmDocumentFormat: JSON
         ssmDocumentType: Command
         ssmDocumentTargetType: /AWS::EC2::Instance
@@ -380,6 +380,7 @@ Resources:
         snsTopicArn: !GetAtt snsTopicForCwAlarms.Outputs.snsTopicArn
         amiIdParamStoreName: !GetAtt ssmParameterStore.Outputs.amiIdParamStoreName
         dBInstanceName: !GetAtt rdsDbInstance.Outputs.dBInstanceIdentifier
+        enableBlockDeviceMapping: False
   createAmiLambdaFunc:
     Type: AWS::CloudFormation::Stack
     DependsOn:
@@ -410,6 +411,7 @@ Resources:
         snsTopicArn: !GetAtt snsTopicForCwAlarms.Outputs.snsTopicArn
         amiIdParamStoreName: !GetAtt ssmParameterStore.Outputs.amiIdParamStoreName
         dBInstanceName: !GetAtt rdsDbInstance.Outputs.dBInstanceIdentifier
+        enableBlockDeviceMapping: False
   updateAsgLaunchTemplateLambdaFunc:
     Type: AWS::CloudFormation::Stack
     DependsOn:
@@ -440,6 +442,7 @@ Resources:
         snsTopicArn: !GetAtt snsTopicForCwAlarms.Outputs.snsTopicArn
         amiIdParamStoreName: !GetAtt ssmParameterStore.Outputs.amiIdParamStoreName
         dBInstanceName: !GetAtt rdsDbInstance.Outputs.dBInstanceIdentifier
+        enableBlockDeviceMapping: False
   triggerScaleInAsgLambdaFunc:
     Type: AWS::CloudFormation::Stack
     DependsOn:
@@ -470,6 +473,7 @@ Resources:
         snsTopicArn: !GetAtt snsTopicForCwAlarms.Outputs.snsTopicArn
         amiIdParamStoreName: !GetAtt ssmParameterStore.Outputs.amiIdParamStoreName
         dBInstanceName: !GetAtt rdsDbInstance.Outputs.dBInstanceIdentifier
+        enableBlockDeviceMapping: False
   snsTopicForCwAlarms:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -595,7 +599,7 @@ Resources:
         highfreeMemoryThresholdValue: 10
         ec2FreeMemScaleInThresholdValue: 70
         asgName: !Sub "${project}-${env}-${app}-AutoScalingGroup"
-        deviceName: xvda1
+        deviceName: nvme0n1p1
         fileSystemType: ext4
         mediumEc2FreeMemoryAlarmName: mediumEc2FreeMemoryAlarm
   asgCloudWatchAlarm:

@@ -23,7 +23,6 @@ Resources:
       Parameters:
         project: !Ref project
         env: !Ref env
-        ssmDocumentName: freeMem
         ssmDocumentFormat: YAML
         ssmDocumentType: Command
         ssmDocumentTargetType: /AWS::EC2::Instance

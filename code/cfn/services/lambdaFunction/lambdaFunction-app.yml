@@ -62,7 +62,11 @@ Parameters:
   dBInstanceName:
     Type: String
     Description: Name of an RDS instance
-
+  enableBlockDeviceMapping:
+    Type: String
+    Default: true
+    AllowedValues: [true, false]
+    Description: Select True to enable Block device mapping otherwise False
 Resources:
   lambdaFunction:
     Type: AWS::Lambda::Function
@@ -85,6 +89,7 @@ Resources:
           snsTopicArn: !Ref snsTopicArn
           amiIdParamStoreName: !Ref amiIdParamStoreName
           dBInstanceName: !Ref dBInstanceName
+          enableBlockDeviceMapping: !Ref enableBlockDeviceMapping
       Code:
         S3Bucket: !Ref s3BucketName
         S3Key: !Ref s3Key

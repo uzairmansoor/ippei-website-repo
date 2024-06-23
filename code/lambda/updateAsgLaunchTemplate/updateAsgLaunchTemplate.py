@@ -12,6 +12,7 @@ def lambda_handler(event, context):
     json.dumps(event)
     image_id = event['ImageId']
     amiIdParamStoreName = os.environ.get("amiIdParamStoreName")
+    enable_block_device_mapping = os.environ.get("enableBlockDeviceMapping")
     ami_name = get_ami_name(image_id)
     put_ssm_parameter(amiIdParamStoreName,image_id)
     if os.environ.get("project") in ami_name and os.environ.get("env") in ami_name:
@@ -61,44 +62,99 @@ def get_latest_launch_template_version():
     return None
 
 
-def update_asg_launch_template(image_id,latest_launch_template_version):
-    response = ec2.create_launch_template_version(
-        LaunchTemplateName = latest_launch_template_version['LaunchTemplateName'],
-        LaunchTemplateData = {
-            'IamInstanceProfile': {
-                'Name': latest_launch_template_version['LaunchTemplateData']['IamInstanceProfile']['Name']
-            },
-            'ImageId': image_id,
-            'InstanceType': latest_launch_template_version['LaunchTemplateData']['InstanceType'],
-            'Monitoring': {
-                'Enabled': latest_launch_template_version['LaunchTemplateData']['Monitoring']['Enabled']
-            },
-            'TagSpecifications': [
-                {
-                    'ResourceType': latest_launch_template_version['LaunchTemplateData']['TagSpecifications'][0]['ResourceType'],
-                    'Tags': [
-                        {
-                            'Key': 'Name',
-                            'Value': os.environ.get("project") + "-" + os.environ.get("env") + "-" + "ec2Instance" + "-" + os.environ.get('AWS_REGION')
-                            # 'Value': os.environ.get("project") + "-" + os.environ.get("env") + "launchTemplateVersionNo." + "-" + str(latest_launch_template_version['VersionNumber']) + "-" + os.environ.get('AWS_REGION') 
-                        },
-                         {
-                            'Key': 'project',
-                            'Value': os.environ.get("project")
-                        },
-                         {
-                            'Key': 'environment',
-                            'Value': os.environ.get("env")
-                        }]}],
-                'BlockDeviceMappings': [
+def update_asg_launch_template(image_id, latest_launch_template_version, enable_block_device_mapping):
+    launch_template_data = {
+        'IamInstanceProfile': {
+            'Name': latest_launch_template_version['LaunchTemplateData']['IamInstanceProfile']['Name']
+        },
+        'ImageId': image_id,
+        'InstanceType': latest_launch_template_version['LaunchTemplateData']['InstanceType'],
+        'Monitoring': {
+            'Enabled': latest_launch_template_version['LaunchTemplateData']['Monitoring']['Enabled']
+        },
+        'TagSpecifications': [
+            {
+                'ResourceType': latest_launch_template_version['LaunchTemplateData']['TagSpecifications'][0]['ResourceType'],
+                'Tags': [
                     {
-                        'DeviceName': latest_launch_template_version['LaunchTemplateData']['BlockDeviceMappings'][0]['DeviceName'],
-                        'Ebs': {
-                            'VolumeSize': latest_launch_template_version['LaunchTemplateData']['BlockDeviceMappings'][0]['Ebs']['VolumeSize'],
-                            'VolumeType': latest_launch_template_version['LaunchTemplateData']['BlockDeviceMappings'][0]['Ebs']['VolumeType']
-                        }
-                        
-                    }],
-                    'KeyName': latest_launch_template_version['LaunchTemplateData']['KeyName'],
-                    'SecurityGroupIds': latest_launch_template_version['LaunchTemplateData']['SecurityGroupIds']
-                    })
+                        'Key': 'Name',
+                        'Value': os.environ.get("project") + "-" + os.environ.get("env") + "-" + "ec2Instance" + "-" + os.environ.get('AWS_REGION')
+                    },
+                    {
+                        'Key': 'project',
+                        'Value': os.environ.get("project")
+                    },
+                    {
+                        'Key': 'environment',
+                        'Value': os.environ.get("env")
+                    }
+                ]
+            }
+        ],
+        'KeyName': latest_launch_template_version['LaunchTemplateData']['KeyName'],
+        'SecurityGroupIds': latest_launch_template_version['LaunchTemplateData']['SecurityGroupIds']
+    }
+
+    if enable_block_device_mapping:
+        launch_template_data['BlockDeviceMappings'] = [
+            {
+                'DeviceName': latest_launch_template_version['LaunchTemplateData']['BlockDeviceMappings'][0]['DeviceName'],
+                'Ebs': {
+                    'VolumeSize': latest_launch_template_version['LaunchTemplateData']['BlockDeviceMappings'][0]['Ebs']['VolumeSize'],
+                    'VolumeType': latest_launch_template_version['LaunchTemplateData']['BlockDeviceMappings'][0]['Ebs']['VolumeType']
+                }
+            }
+        ]
+
+    response = ec2.create_launch_template_version(
+        LaunchTemplateName=latest_launch_template_version['LaunchTemplateName'],
+        LaunchTemplateData=launch_template_data
+    )
+
+# def update_asg_launch_template(image_id,latest_launch_template_version):
+#     response = ec2.create_launch_template_version(
+#         LaunchTemplateName = latest_launch_template_version['LaunchTemplateName'],
+#         LaunchTemplateData = {
+#             'IamInstanceProfile': {
+#                 'Name': latest_launch_template_version['LaunchTemplateData']['IamInstanceProfile']['Name']
+#             },
+#             'ImageId': image_id,
+#             'InstanceType': latest_launch_template_version['LaunchTemplateData']['InstanceType'],
+#             'Monitoring': {
+#                 'Enabled': latest_launch_template_version['LaunchTemplateData']['Monitoring']['Enabled']
+#             },
+#             'TagSpecifications': [
+#                 {
+#                     'ResourceType': latest_launch_template_version['LaunchTemplateData']['TagSpecifications'][0]['ResourceType'],
+#                     'Tags': [
+#                         {
+#                             'Key': 'Name',
+#                             'Value': os.environ.get("project") + "-" + os.environ.get("env") + "-" + "ec2Instance" + "-" + os.environ.get('AWS_REGION')
+#                             # 'Value': os.environ.get("project") + "-" + os.environ.get("env") + "launchTemplateVersionNo." + "-" + str(latest_launch_template_version['VersionNumber']) + "-" + os.environ.get('AWS_REGION') 
+#                         },
+#                          {
+#                             'Key': 'project',
+#                             'Value': os.environ.get("project")
+#                         },
+#                          {
+#                             'Key': 'environment',
+#                             'Value': os.environ.get("env")
+#                         }
+#                     ]
+#                 }
+#             ],
+#             'KeyName': latest_launch_template_version['LaunchTemplateData']['KeyName'],
+#             'SecurityGroupIds': latest_launch_template_version['LaunchTemplateData']['SecurityGroupIds']
+#         }
+
+#         if enable_block_device_mapping:
+#             launch_template_data['BlockDeviceMappings'] = [
+#                 {
+#                     'DeviceName': latest_launch_template_version['LaunchTemplateData']['BlockDeviceMappings'][0]['DeviceName'],
+#                     'Ebs': {
+#                         'VolumeSize': latest_launch_template_version['LaunchTemplateData']['BlockDeviceMappings'][0]['Ebs']['VolumeSize'],
+#                         'VolumeType': latest_launch_template_version['LaunchTemplateData']['BlockDeviceMappings'][0]['Ebs']['VolumeType']
+#                     }
+#                 }
+#             ]
+#     )

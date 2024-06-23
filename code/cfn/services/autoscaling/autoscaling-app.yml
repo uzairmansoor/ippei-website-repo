@@ -47,6 +47,11 @@ Parameters:
   targetGroupArn:
     Type: String
     Description: ARN of Target Group of Load Balancer
+  enableBlockDeviceMapping:
+    Type: String
+    Default: true
+    AllowedValues: [true, false]
+    Description: Select True to enable Block device mapping otherwise False
   ebsVolumeSize:
     Type: Number 
     Default: 30
@@ -136,6 +141,8 @@ Parameters:
     Type: String
     Default: us-east-1
     Description: Region Name
+Conditions:
+  isBlockDeviceMapping: !Equals [!Ref enableBlockDeviceMapping, true]
 Resources:
   autoscalingLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
@@ -156,10 +163,13 @@ Resources:
               - Key: environment
                 Value: !Ref env
         BlockDeviceMappings:
-          - DeviceName: /dev/xvda
-            Ebs:
-              VolumeSize: !Ref ebsVolumeSize
-              VolumeType: !Ref ebsVolumeType
+          - !If 
+            - isBlockDeviceMapping
+            - DeviceName: /dev/xvda
+              Ebs:
+                VolumeSize: !Ref ebsVolumeSize
+                VolumeType: !Ref ebsVolumeType
+            - !Ref 'AWS::NoValue'
         KeyName: !Ref keyPairName
         Monitoring:
           Enabled: !Ref detailedMonitoring

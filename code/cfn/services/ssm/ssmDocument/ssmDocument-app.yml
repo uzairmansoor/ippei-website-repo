@@ -15,9 +15,6 @@ Parameters:
     Type: String
     Default: app
     Description: Name of the app
-  ssmDocumentName:
-    Type: String
-    Description:  Name of the ssm document
   ssmDocumentFormat:
     Type: String
     Default: JSON
@@ -68,7 +65,7 @@ Resources:
   freeMemSsmDocument:
     Type: AWS::SSM::Document
     Properties:
-      Name: !Sub "${project}-${env}-${app}-${ssmDocumentName}-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-${AWS::Region}"
       DocumentFormat: !Ref ssmDocumentFormat
       DocumentType: !Ref ssmDocumentType
       TargetType: !Ref ssmDocumentTargetType
@@ -107,14 +104,13 @@ Resources:
             inputs:
               runCommand:
                 - "sudo su"
+                - "cd /home/ubuntu"
                 - "apt-get install bc"
-                - "cd /home/ubuntu/"
                 - "cat <<'EOL' >> '{{ scriptFileName }}' - "
+                - while true; do
                 - "set -x"
-                - "memory_info=$(free -b | grep Mem)"
-                - "free_memory=$(echo $memory_info | awk '{print $4}')"
-                - "free_memory_mb=$((free_memory / 4096 / 4096))"
-                - "free_memory_percent=$(echo \"scale=2; ($free_memory_mb / 4096) * 100\" | bc)"
+                - "free_memory_gb=$(free -h --si | awk '/Mem:/ {print $4}')"
+                - "free_memory_percent=$(echo \"scale=2; ($free_memory_gb / 3.8) * 100\" | bc)"
                 - "METRIC_VALUE=$free_memory_percent"
                 - "aws cloudwatch put-metric-data \\"
                 - " --region '{{ awsRegion }}' \\"
@@ -123,13 +119,15 @@ Resources:
                 - " --value $METRIC_VALUE \\"
                 - " --unit '{{ freeMemoryMetricUnit }}' \\"
                 - " --dimensions AutoScalingGroupName=\"'{{ autoScalingGroupName }}'\""
+                - sleep 20
+                - done
                 - "EOL"
                 - "chmod +x '{{ scriptFileName }}'"
-                - "./'{{ scriptFileName }}'"
-                - "echo \"*/1 * * * * /home/bitnami/'{{ + }}'\" | crontab -"
+                - "nohup ./'{{ scriptFileName }}' &"
+                - "echo \"*/1 * * * * /home/ubuntu/'{{ scriptFileName }}'\" | crontab -"
       Tags:
         - Key: Name
-          Value: !Sub "${project}-${env}-${app}-${ssmDocumentName}-${AWS::Region}"
+          Value: !Sub "${project}-${env}-${app}-${AWS::Region}"
         - Key: project
           Value: !Ref project
         - Key: environment
@@ -139,4 +137,4 @@ Outputs:
   freeMemSsmDocumentName:
     Value: !Ref freeMemSsmDocument
     Export:
-      Name: !Sub "${project}-${env}-${app}-${ssmDocumentName}-${AWS::Region}"
+      Name: !Sub "${project}-${env}-${app}-${AWS::Region}"
