@@ -1,12 +1,14 @@
-AWSTemplateFormatVersion: 2010-09-09
+AWSTemplateFormatVersion: '2010-09-09'
 Description: Template to deploy the VPC and it's relevant components
 Parameters:
   project:
     Type: String
+    Default: ippei
     Description:  Project Name
   env:
     Type: String
-    AllowedValues: [prod, dev, qa]
+    Default: stage
+    AllowedValues: [prod, dev, qa, stage]
     Description:  Environment Name
   app:
     Type: String

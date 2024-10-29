@@ -1,9 +1,9 @@
-AWSTemplateFormatVersion: 2010-09-09
+AWSTemplateFormatVersion: '2010-09-09'
 Description: Driver template to deploy the SSM document
 Parameters:
   project:
     Type: String
-    Default: cloudweb
+    Default: ippei
     Description:  Project Name
   env:
     Type: String
@@ -12,7 +12,7 @@ Parameters:
     Description:  Environment Name
   s3ArtifactPath:
     Type: String
-    Default: "https://cloudweb-wordpress-stag-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
+    Default: "https://ippei-wordpress-stag-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
     Description: "Artifact Bucket path"
 
 Resources:

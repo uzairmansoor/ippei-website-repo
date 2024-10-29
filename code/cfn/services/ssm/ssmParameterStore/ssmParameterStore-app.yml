@@ -1,15 +1,15 @@
-AWSTemplateFormatVersion: 2010-09-09
+AWSTemplateFormatVersion: '2010-09-09'
 Description: 'Template to deploy the SSM parameter store'
 
 Parameters:
   project:
     Type: String
-    Default: cloudweb
+    Default: ippei
     Description:  Project Name
   env:
     Type: String
-    Default: stag
-    AllowedValues: [prod, dev, qa, stag]
+    Default: stage
+    AllowedValues: [prod, dev, qa, stage]
     Description:  Environment Name
   app:
     Type: String

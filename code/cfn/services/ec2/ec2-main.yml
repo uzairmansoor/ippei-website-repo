@@ -1,18 +1,18 @@
-AWSTemplateFormatVersion: 2010-09-09 
+AWSTemplateFormatVersion: '2010-09-09' 
 Description: Driver template to deploy ec2
 Parameters:
   project:
     Type: String
-    Default: cloudweb
+    Default: ippei
     Description:  Project Name
   env:
     Type: String
-    Default: stag
-    AllowedValues: [prod, dev, qa, stag]
+    Default: stage
+    AllowedValues: [prod, dev, qa, stage]
     Description:  Environment Name
   s3ArtifactPath:
     Type: String
-    Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
+    Default: "https://ippei-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
     Description: "Artifact bucket path"
 Resources:
   jumpServer:
@@ -23,7 +23,7 @@ Resources:
         project: !Ref project
         env: !Ref env
         serverName: jumpServer 
-        keyPairName: cloudweb-stag-us-east-1-770760105158
+        keyPairName: cloudweb-stage-us-east-1-770760105158
         ec2SShSecurityGroup: !GetAtt securityGroup.Outputs.sgBastionHost
         ec2SubnetId: !GetAtt vpc.Outputs.publicSubnet1
         imageId: ami-053b0d53c279acc90

@@ -1,14 +1,15 @@
-AWSTemplateFormatVersion: 2010-09-09
+AWSTemplateFormatVersion: '2010-09-09'
 Description: 'Template to deploy the Autoscaling Group'
 
 Parameters:
   project:
     Type: String
+    Default: ippei
     Description:  Project Name
   env:
     Type: String
-    Default: stag
-    AllowedValues: [prod, dev, qa, stag]
+    Default: stage
+    AllowedValues: [prod, dev, qa, stage]
     Description:  Environment Name
   app:
     Type: String
@@ -179,13 +180,13 @@ Resources:
           Fn::Base64: !Sub |
             #!/bin/bash
             sudo su
+            sudo apt-get install sysstat -Y
             wget https://s3.amazonaws.com/amazoncloudwatch-agent/linux/amd64/latest/AmazonCloudWatchAgent.zip
             unzip AmazonCloudWatchAgent.zip
             sudo ./install.sh
             sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a start
             sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -m ec2 -a status
-            sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:${memUtilSSMParamStoreName} -s
-            sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:${diskUtilSSMParamStoreName} -s
+            
             mkdir /ssmagent
             cd /ssmagent
             wget https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb
@@ -193,10 +194,12 @@ Resources:
             sudo dpkg -i amazon-ssm-agent.deb
             sudo systemctl enable amazon-ssm-agent
             sudo systemctl start amazon-ssm-agent
-            sudo systemctl status amazon-ssm-agent
             sudo apt-get install bc
-            aws ssm create-association --name "${ssmAssociationName}" --targets "Key=InstanceIds,Values=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)" --region ${regionName}
             sudo systemctl restart apache2
+            sudo apt install sysstat -y
+# aws ssm create-association --name "${ssmAssociationName}" --targets "Key=InstanceIds,Values=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)" --region ${regionName}
+# sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:${memUtilSSMParamStoreName} -s
+# sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:${diskUtilSSMParamStoreName} -s
   autoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:

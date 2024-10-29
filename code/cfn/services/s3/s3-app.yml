@@ -1,13 +1,14 @@
-AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: '2010-09-09'
 Description: Cloudformation template to create S3 buckets
 Parameters:
   project:
     Type: String
+    Default: ippei
     Description:  Project Name
   env:
     Type: String
-    Default: stag
-    AllowedValues: [prod, dev, qa, stag]
+    Default: stage
+    AllowedValues: [prod, dev, qa, stage]
     Description:  Environment Name
   app:
     Type: String
@@ -57,6 +58,20 @@ Parameters:
     Default: yes
     AllowedValues: [yes, no]
     Description: Enable load balancer write policy or not
+  websiteUrl:
+    Type: String
+    Default: https://ippei.com
+    Description:  The website URL where the contents of this bucket can be accessed
+  stagWebsiteUrl:
+    Type: String
+    Default: https://ippeistagingsite.com
+    Description:  The stag website URL where the contents of this bucket can be accessed
+    Description: CloudFront access log s3 bucket policy be created or not
+  wwwWebsiteUrl:
+    Type: String
+    Default: https://www.ippei.com
+    Description:  The dev website URL where the contents of this bucket can be accessed
+    Description: CloudFront access log s3 bucket policy be created or not
 
 Conditions:
   isEnableCfWritePolicy: !Equals [!Ref enableCfWritePolicy, yes ]
@@ -173,6 +188,12 @@ Resources:
             Resource:
               - !GetAtt s3Bucket.Arn
               - !Sub "${s3Bucket.Arn}/*"
+            Condition:
+              StringLike:
+                aws:Referer:
+                  - !Sub "${websiteUrl}/*"
+                  - !Sub "${wwwWebsiteUrl}/*"
+                  - !Sub "${stagWebsiteUrl}/*"
   
   writeAccessPolicyCloudFront:
     Type: AWS::S3::BucketPolicy

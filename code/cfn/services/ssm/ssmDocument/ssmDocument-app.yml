@@ -1,15 +1,15 @@
-AWSTemplateFormatVersion: 2010-09-09
+AWSTemplateFormatVersion: '2010-09-09'
 Description: Template to deploy the SSM document
 
 Parameters:
   project:
     Type: String
-    Default: cloudweb
+    Default: ippei
     Description:  Project Name
   env:
     Type: String
-    Default: stag
-    AllowedValues: [prod, dev, qa, stag]
+    Default: stage
+    AllowedValues: [prod, dev, qa, stage]
     Description:  Environment Name
   app:
     Type: String
@@ -119,7 +119,7 @@ Resources:
                 - " --value $METRIC_VALUE \\"
                 - " --unit '{{ freeMemoryMetricUnit }}' \\"
                 - " --dimensions AutoScalingGroupName=\"'{{ autoScalingGroupName }}'\""
-                - sleep 20
+                - sleep 60
                 - done
                 - "EOL"
                 - "chmod +x '{{ scriptFileName }}'"

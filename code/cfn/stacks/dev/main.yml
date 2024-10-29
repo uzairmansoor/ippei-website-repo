@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: 2010-09-09
+AWSTemplateFormatVersion: '2010-09-09'
 Description: Driver template to deploy the vpc, security groups, load balancer, cloudfront distribution, iam roles, lambda function, s3 bucket, ssmParameter, cloudwatch rules, rds, and auto scaling Group
 Parameters:
   project:
@@ -8,7 +8,7 @@ Parameters:
   env:
     Type: String
     Default: dev
-    AllowedValues: [prod, dev, qa, stag]
+    AllowedValues: [prod, dev, qa, stage]
     Description:  Environment Name
   app:
     Type: String

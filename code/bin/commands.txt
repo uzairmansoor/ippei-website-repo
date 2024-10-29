@@ -16,3 +16,12 @@ aws cloudformation update-stack --stack-name ippei-web-prod --template-body file
 
 aws cloudformation delete-stack --stack-name ippei-web-prod --region us-east-1
 
+                                            #######     STAGE     #######
+aws s3 sync . s3://ippei-stage-app-us-east-1-203352749099/ --exclude "LICENSE" --exclude "*.md" --exclude ".git/*"
+
+aws cloudformation create-stack --stack-name ippei-web-stage --template-body file://code/cfn/stacks/stage/main.yml --region us-east-1 --capabilities CAPABILITY_NAMED_IAM --parameters ParameterKey=dBUsername,ParameterValue=ippeicoachadmin ParameterKey=dBPassword,ParameterValue=vcFfG78c!S1v#JBYQtLuk
+
+aws cloudformation update-stack --stack-name ippei-web-stage --template-body file://code/cfn/stacks/stage/main.yml --region us-east-1 --capabilities CAPABILITY_NAMED_IAM --parameters ParameterKey=dBUsername,ParameterValue=ippeicoachadmin ParameterKey=dBPassword,ParameterValue=vcFfG78c!S1v#JBYQtLuk
+
+aws cloudformation delete-stack --stack-name ippei-web-stage --region us-east-1
+

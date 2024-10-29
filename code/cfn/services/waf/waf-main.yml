@@ -3,12 +3,12 @@ Description: Cfn driver template to deploy WAF
 Parameters:
   project:
     Type: String
-    Default: cloudweb
+    Default: ippei
     Description: Project name
   env:
     Type: String
-    Default: stag
-    AllowedValues: [prod, dev, qa, stag]
+    Default: stage
+    AllowedValues: [prod, dev, qa, stage]
     Description: Environment name
   app:
     Type: String
@@ -16,7 +16,7 @@ Parameters:
     Description: Name of the app
   s3ArtifactPath:
     Type: String
-    Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
+    Default: "https://ippei-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
     Description: Artifact bucket path
 
 Resources:

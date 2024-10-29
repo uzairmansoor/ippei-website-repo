@@ -4,12 +4,12 @@ Description: CloudFormation template to deploy cloudwatch events rule
 Parameters:
   project:
     Type: String
-    Default: cloudweb
+    Default: ippei
     Description: Project name
   env:
     Type: String
-    Default: stag
-    AllowedValues: [prod, dev, qa, stag]
+    Default: stage
+    AllowedValues: [prod, dev, qa, stage]
     Description: Environment name
   app:
     Type: String
@@ -92,10 +92,10 @@ Parameters:
 Conditions:
   isEventRuleForRdsAndEc2: !Or 
     - !Equals [ !Ref env, "dev" ]
-    - !Equals [ !Ref env, "stag" ]
+    - !Equals [ !Ref env, "stage" ]
   isLambdaPermissionForRdsAndEc2: !Or
     - !Equals [ !Ref env, "dev" ]
-    - !Equals [ !Ref env, "stag" ]
+    - !Equals [ !Ref env, "stage" ]
 
 Resources:
   # cwStartEventRule:

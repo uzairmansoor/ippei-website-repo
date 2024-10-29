@@ -3,16 +3,16 @@ Description: Driver template create sns topic
 Parameters:
   project:
     Type: String
-    Default: cloudweb
+    Default: ippei
     Description:  Project Name
   env:
     Type: String
-    Default: stag
-    AllowedValues: [prod, dev, qa, stag]
+    Default: stage
+    AllowedValues: [prod, dev, qa, stage]
     Description:  Environment Name
   s3ArtifactPath:
     Type: String
-    Default: "https://cloudweb-wordpress-stag-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
+    Default: "https://ippei-wordpress-stage-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
     Description: "Artifact bucket path"
 
 Resources:

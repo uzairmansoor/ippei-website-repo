@@ -7,7 +7,7 @@ Parameters:
     Description:  Project Name
   env:
     Type: String
-    Default: prod
+    Default: stage
     AllowedValues: [prod, dev, qa, stage]
     Description:  Environment Name
   app:
@@ -24,7 +24,7 @@ Parameters:
     Description: Password for database access
   s3ArtifactPath:
     Type: String
-    Default: "https://ippei-prod-app-us-east-1-203352749099.s3.amazonaws.com/code/cfn/services"
+    Default: "https://ippei-stage-app-us-east-1-203352749099.s3.amazonaws.com/code/cfn/services"
     Description: "Artifacts bucket path"
 
 Resources:
@@ -36,13 +36,13 @@ Resources:
         project: !Ref project
         env: !Ref env
         app: !Ref app
-        vpcCidr: 10.20.0.0/16
-        publicSubnet1Cidr: 10.20.1.0/24
-        publicSubnet2Cidr: 10.20.2.0/24
-        privateSubnet1Cidr: 10.20.3.0/24
-        privateSubnet2Cidr: 10.20.4.0/24
-        protectedSubnet1Cidr: 10.20.36.0/24
-        protectedSubnet2Cidr: 10.20.37.0/24
+        vpcCidr: 10.30.0.0/16
+        publicSubnet1Cidr: 10.30.1.0/24
+        publicSubnet2Cidr: 10.30.2.0/24
+        privateSubnet1Cidr: 10.30.3.0/24
+        privateSubnet2Cidr: 10.30.4.0/24
+        protectedSubnet1Cidr: 10.30.36.0/24
+        protectedSubnet2Cidr: 10.30.37.0/24
         vpcDestinationCidrBlockPublicRoute: 0.0.0.0/0
         vpcDestinationCidrBlockPrivateRoute: 0.0.0.0/0
         vpcDestinationCidrBlockProtectedRoute: 0.0.0.0/0
@@ -50,7 +50,7 @@ Resources:
         vpcNaclPublicOutboundCidr: 0.0.0.0/0
         vpcNaclPrivateInboundCidr: 0.0.0.0/0
         vpcNaclPrivateOutboundCidr: 0.0.0.0/0
-        vpcNaclProtectedInboundCidr: 10.20.0.0/16
+        vpcNaclProtectedInboundCidr: 10.30.0.0/16
         vpcNaclProtectedOutboundCidr: 0.0.0.0/0
         publicIPActive: True
         vpcDnsEnabled: True
@@ -85,7 +85,7 @@ Resources:
         project: !Ref project
         env: !Ref env
         app: !Ref app
-        ec2EndpointClientToken: ec2InstanceConnectEndpoint # A unique, case-sensitive identifier to guarantee the idempotency of the request
+        ec2EndpointClientToken: !Sub ${env}-ec2InstanceConnectEndpoint # A unique, case-sensitive identifier to guarantee the idempotency of the request
         ec2EndpointPreserveClientIp: True
         ec2EndpointSg: !GetAtt securityGroup.Outputs.sgEc2ConnectEndpoint
         ec2EndpointSubnetId: !GetAtt vpc.Outputs.privateSubnet1
@@ -100,7 +100,7 @@ Resources:
         project: !Ref project
         env: !Ref env
         app: jumpServer
-        imageId: ami-04b70fa74e45c3917
+        imageId: ami-04a81a99f5ec58529
         instanceType: t2.micro
         ec2SubnetId: !GetAtt vpc.Outputs.publicSubnet1
         ec2SShSecurityGroup: !GetAtt securityGroup.Outputs.sgEc2ConnectEndpoint
@@ -156,7 +156,7 @@ Resources:
         appCode: 200-499
         lbTargetType: instance
         statusCode: HTTP_301
-        acmCertificateIdentifier: e7536a34-840e-43e1-8539-ad15a7183f47
+        acmCertificateIdentifier: a857ad59-7236-4aee-ba3a-24910498e233
         loadBalancerType: application
         lbHttpsListenerSslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
         lbHttpsProtocol: HTTPS
@@ -211,7 +211,7 @@ Resources:
         project: !Ref project
         env: !Ref env
         app: !Ref app
-        amiId: ami-03d12e3c665e14046 #ami-03d12e3c665e14046
+        amiId: ami-02c72c7805270d912
   freeMemSsmDocument:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -265,14 +265,14 @@ Resources:
         env: !Ref env
         app: !Ref app
         launchTemplateEc2ImageId: !GetAtt ssmParameterStore.Outputs.amiIdParamStoreValue
-        ec2InstanceType: c5a.xlarge
+        ec2InstanceType: c5a.large
         keyPairName: !Sub "${project}-${env}-${app}-${AWS::Region}-${AWS::AccountId}"
         launchTemplateName: !Sub "${project}-${env}-${app}-asgLaunchTemplate"
         autoScalingGroupName: !Sub "${project}-${env}-${app}-AutoScalingGroup"
         privateSubnet1Id: !GetAtt vpc.Outputs.privateSubnet1
         privateSubnet2Id: !GetAtt vpc.Outputs.privateSubnet2
         autoScalingDesiredCapacity: 1
-        autoScalingMaxSize: 2
+        autoScalingMaxSize: 1
         autoScalingMinSize: 1
         sgEc2Web: !GetAtt securityGroup.Outputs.sgEc2Web
         enableBlockDeviceMapping: False
@@ -318,10 +318,10 @@ Resources:
         defaultTTL: 86400
         maxTTL: 259300
         minTTL: 86400
-        acmCertificateIdentifier: e7536a34-840e-43e1-8539-ad15a7183f47
+        acmCertificateIdentifier: a857ad59-7236-4aee-ba3a-24910498e233
         cfHttpsPort: 443
         cfOriginSSLProtocols: TLSv1.2
-        cfAlias: ippei.com
+        cfAlias: ippeistagingsite.com
         # cfAlias2: .goldirahedge.com
         # cfAlias3: *.goldirahedge.com
         cfOriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
@@ -355,8 +355,8 @@ Resources:
         app: !Ref app
         dBInstanceIdentifier: db
         dbName: ""
-        dBSnapshotIdentifier: ippei-prod-app-rds-bef-mig-us-east-1-203352749099 #migrated-rds-theme-us-east-1-203352749099
-        dBInstanceClass: db.m5.xlarge
+        dBSnapshotIdentifier: ippei-db-stage-test-snapshot
+        dBInstanceClass: db.m5.large
         dbPrivateSubnet01: !GetAtt vpc.Outputs.protectedSubnet1
         dbPrivateSubnet02: !GetAtt vpc.Outputs.protectedSubnet2
         dbSecurityGroup: !GetAtt securityGroup.Outputs.sgRds
@@ -370,7 +370,7 @@ Resources:
         dBPassword: !Ref dBPassword
         dbEngineVersion: 10.4.32
         dbPort: 3306
-        # kmsKeyId:
+        # kmsKeyId: 
   updateInstanceIdLambdaFunc:
     Type: AWS::CloudFormation::Stack
     DependsOn:
@@ -813,10 +813,10 @@ Outputs:
     Value: !Ref applicationLoadBalancer
     Export:
       Name: !Sub "${project}-${env}-${app}-applicationLoadBalancerStack-${AWS::Region}"
-  s3WebsiteMediaArtifactsBucket:
-    Value: !Ref s3WebsiteMediaArtifactsBucket
-    Export:
-      Name: !Sub "${project}-${env}-${app}-s3MediaArtifactsBucketStack-${AWS::Region}"
+#   s3ArtifactsBucket:
+#     Value: !Ref s3ArtifactsBucket
+#     Export:
+#       Name: !Sub "${project}-${env}-${app}-s3ArtifactsBucketStack-${AWS::Region}"
   s3CfAccessLogBucket:
     Value: !Ref s3CfAccessLogBucket
     Export:

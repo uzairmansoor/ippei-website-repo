@@ -1,14 +1,15 @@
-AWSTemplateFormatVersion: 2010-09-09
+AWSTemplateFormatVersion: '2010-09-09'
 Description: "CloudFormation Template to deploy lambda functions"
 
 Parameters:
   project:
     Type: String
+    Default: ippei
     Description: Project name
   env:
     Type: String
-    Default: stag
-    AllowedValues: [prod, dev, qa, stag]
+    Default: stage
+    AllowedValues: [prod, dev, qa, stage]
     Description: Environment name
   app:
     Type: String

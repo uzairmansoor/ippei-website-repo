@@ -3,11 +3,12 @@ Description: Driver template to create sns topic and subscription
 Parameters:
   project:
     Type: String
+    Default: ippei
     Description:  Project Name
   env:
     Type: String
-    Default: stag
-    AllowedValues: [prod, dev, qa, stag]
+    Default: stage
+    AllowedValues: [prod, dev, qa, stage]
     Description:  Environment Name
   app:
     Type: String

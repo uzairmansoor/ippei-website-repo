@@ -1,14 +1,14 @@
-AWSTemplateFormatVersion: 2010-09-09 
+AWSTemplateFormatVersion: '2010-09-09' 
 Description: Driver template to create RDS
 Parameters:
   project:
     Type: String
     Description:  Project Name
-    Default: cloudweb
+    Default: ippei
   env:
     Type: String
-    Default: prod
-    AllowedValues: [prod, dev, qa]
+    Default: stage
+    AllowedValues: [prod, dev, qa, stage]
     Description:  Environment Name   
   dBUsername:
     Type: String
@@ -20,7 +20,7 @@ Parameters:
     Description: The Password for database access
   s3ArtifactPath:
     Type: String
-    Default: "https://cloudweb-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
+    Default: "https://ippei-wordpress-prod-us-east-1-770760105158.s3.amazonaws.com/code/cfn/services"
     Description: "Artifact bucket path"
 
 Resources:
